@@ -24,6 +24,11 @@ def main():
         name = os.path.splitext(image.getAttribute("name"))[0]  # first ele is file name
         points = image.getElementsByTagName("points")
         bboxes = image.getElementsByTagName("box")
+
+        # TODO: assign point to bboxes
+        print(type(points))
+        break
+
         with open(os.path.join(out_dir, name + ".txt"), "w") as label_file:
             # iterate over pairs of bbox and keypoints for every sperm
             for keypoints, bbox in zip(points, bboxes):
