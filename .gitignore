@@ -1,9 +1,10 @@
 # project-specefic ignores
-other_data
+data
+model
 notebooks
+other_data
 out
 runs
-data
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
