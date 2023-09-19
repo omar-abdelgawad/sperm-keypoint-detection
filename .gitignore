@@ -5,7 +5,7 @@ notebooks
 other_data
 out
 runs
-
+pat.txt
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
