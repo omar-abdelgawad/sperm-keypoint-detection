@@ -12,6 +12,7 @@ from typing import Any
 # TODO: produce an image of an overlay of the sperm across multiple frames.
 # TODO: Maybe try to interpolate the points in a polynomial instead of connecting them with a line.
 # TODO: estimate the amplitude and the head frequency.
+# TODO: GUI using tkinter?????
 
 # inputs
 INPUT_VIDEO_PATH = "other_data/sperm_vids/good_quality/f5 736.avi"
@@ -109,6 +110,7 @@ def save_fft_graph_for_head_frequency(
     fourier: np.ndarray = np.array(rfft(signal))
     frequency_axis = rfftfreq(n, d=1.0 / sampling_rate)
     norm_amplitude = np.abs(fourier / normalize)
+    estimated_frequency = estimate_freq(frequency_axis, norm_amplitude)
 
     title = f"fourier transform of head frequency for id: {id_num}"
     xlabel = "frequencies"
@@ -118,9 +120,23 @@ def save_fft_graph_for_head_frequency(
     fig.text(0.5, 0.04, xlabel, ha="center")
     fig.text(0.04, 0.5, ylabel, va="center", rotation="vertical")
     ax.plot(frequency_axis, norm_amplitude)
+    ax.axvline(
+        x=estimated_frequency, color="red", linestyle="--", label="Estimated frequency"
+    )
     # ax.set_xlim(0, 50)
     plt.savefig(fname=f"{os.path.join(out_dir,title)}.jpeg")
     plt.close(fig)
+
+
+def estimate_freq(frequency_axis: np.ndarray, norm_amplitude: np.ndarray):
+    is_increasing = norm_amplitude > np.roll(norm_amplitude, 1)
+    is_decreasing = norm_amplitude > np.roll(norm_amplitude, -1)
+    is_critical_point = is_increasing & is_decreasing
+    is_critical_point[[0, -1]] = False
+    norm_amplitude_tmp = np.array(norm_amplitude)
+    norm_amplitude_tmp[~is_critical_point] = 0
+    amp_index = np.argmax(norm_amplitude_tmp)
+    return frequency_axis[amp_index]
 
 
 def main(argv: Optional[list[str]] = None):
@@ -216,7 +232,8 @@ def main(argv: Optional[list[str]] = None):
     write_video_from_img_array(overlay_img_array, VIDEO_NAME)
     for id in track_history_dict:
         id_out_dir = os.path.join(OUT_DIR, f"{id}")
-        os.makedirs(id_out_dir)
+        if not os.path.exists(id_out_dir):
+            os.makedirs(id_out_dir)
         cv2.imwrite(
             os.path.join(id_out_dir, f"id:{id}_sperm_image.jpeg"),
             track_history_dict[id]["sperm_image"],
