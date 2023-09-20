@@ -1,5 +1,5 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 import os
 import sys
 import cv2
@@ -13,7 +13,6 @@ from typing import Sequence
 from typing import Any
 
 # TODO: refactor projection to be cleaner.
-# TODO: switch development to windows.
 # TODO: Maybe try to interpolate the points in a polynomial instead of connecting them with a line.
 # TODO: estimate the amplitude and the head frequency.
 # TODO: add arguments from argument parser
@@ -58,7 +57,7 @@ POINTS_1_TO_4_COLOR = GREEN
 POINTS_5_TO__COLOR = BLUE
 PROJECTION_LINE_COLOR = BLUE
 # directories
-OUT_DIR = "./out"
+OUT_DIR = "out"
 OUT_VIDEO_FOLDER = "videos"
 
 
@@ -114,7 +113,7 @@ def save_amplitude_figures(id_num: int, id_dict: dict, out_dir: str) -> None:
 
     Returns:
         None"""
-    title = f"Signed Amplitude of last 4 points for id:{id_num}"
+    title = f"Signed Amplitude of last 4 points for id {id_num}"
     xlabel = "frame count"
     ylabel = "distance between point and head axis in pixels"
     fig, axes = plt.subplots(2, 2, sharey=True, sharex=True)
@@ -148,7 +147,7 @@ def save_head_frequency_figure(id_num: int, points: list, out_dir: str) -> None:
 
     Returns:
         None"""
-    title = f"head angle vs frame for id: {id_num}"
+    title = f"head angle vs frame for id {id_num}"
     xlabel = "frame count"
     ylabel = "angle"
     fig, ax = plt.subplots()
@@ -180,7 +179,7 @@ def save_fft_graph_for_head_frequency(
     norm_amplitude = np.abs(fourier / normalize)
     estimated_frequency = estimate_freq(frequency_axis, norm_amplitude)
 
-    title = f"fourier transform of head frequency for id: {id_num}"
+    title = f"fourier transform of head frequency for id {id_num}"
     xlabel = "frequencies"
     ylabel = "norm amplitude"
     fig, ax = plt.subplots()
@@ -361,7 +360,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = handle_parser(argv)
     input_video_path = args.input_path
     input_video_name = os.path.split(input_video_path)[1]
-    OUT_DIR = os.path.join("./out", os.path.splitext(input_video_name)[0])
+    OUT_DIR = os.path.join(OUT_DIR, os.path.splitext(input_video_name)[0])
     model = YOLO(MODEL_PATH)
     lstresults = model.track(
         source=input_video_path,
@@ -430,11 +429,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     print("Writing ID folders")
     for id, track in track_history_dict.items():
-        id_out_dir = os.path.join(OUT_DIR, f"id:{id}")
+        id_out_dir = os.path.join(OUT_DIR, f"id_{id}")
         if not os.path.exists(id_out_dir):
             os.makedirs(id_out_dir)
         cv2.imwrite(
-            os.path.join(id_out_dir, f"id:{id}_sperm_image.jpeg"),
+            os.path.join(id_out_dir, f"id_{id}_sperm_image.jpeg"),
             track["sperm_image"],
         )
         save_amplitude_figures(id, track, id_out_dir)
@@ -443,7 +442,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             id, track["head_angle"], args.rate, id_out_dir
         )
         cv2.imwrite(
-            os.path.join(id_out_dir, f"id:{id}_sperm_overlay_image.jpeg"),
+            os.path.join(id_out_dir, f"id_{id}_sperm_overlay_image.jpeg"),
             track["overlay_image"],
         )
 
