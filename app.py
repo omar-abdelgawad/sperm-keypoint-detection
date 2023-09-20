@@ -5,6 +5,7 @@ import cv2
 from ultralytics import YOLO
 from collections import defaultdict
 from scipy.fft import rfft, rfftfreq
+from scipy import interpolate
 from typing import Optional
 from typing import Any
 from itertools import cycle
@@ -45,6 +46,8 @@ COLOR_LIST = cycle(
     ]
 )
 OVERLAY_IMAGE_SAMPLE_RATE = 15
+SPLINE_DEG = 2
+NUM_POINTS_ON_FLAGELLUM = 100
 
 # directories
 OUT_DIR = os.path.join("./out", os.path.splitext(VIDEO_NAME)[0])
@@ -176,6 +179,43 @@ def draw_head_ellipse(v1, v2, img, color) -> None:
     )
 
 
+def draw_overlay_image(v1, v2, seven_obj_keypoints, image) -> None:
+    color = next(COLOR_LIST)
+    draw_head_ellipse(v1, v2, image, color)
+
+    points = np.array(seven_obj_keypoints)
+    points = points.reshape((-1, 1, 2))
+    cv2.polylines(image, [points], isClosed=False, color=color, thickness=THICKNESS)
+    # points_array = np.array(seven_obj_keypoints, dtype=np.int32)
+    # points = sorted(seven_obj_keypoints)
+    # x_coords, y_coords = zip(*points)
+    # tck = interpolate.splrep(x_coords, y_coords)
+    # x_range = np.linspace(
+    #     np.min(x_coords), np.max(x_coords), NUM_POINTS_ON_FLAGELLUM, dtype=np.int32
+    # )
+    # y_range = np.array(interpolate.splev(x_range, tck=tck), dtype=np.int32)
+    # # x_range = x_range.astype(int)
+    # smooth_curve = np.column_stack((x_range, y_range))
+    # cv2.polylines(
+    #     image, [smooth_curve], isClosed=False, color=color, thickness=THICKNESS
+    # )
+    # interpolate.BSpline
+
+    # coefficients = np.polyfit(x_coords, y_coords, POLYNOMIAL_DEG)
+    # x_range = np.linspace(min(x_coords), max(x_coords), 100)
+    # y_range = np.polyval(coefficients, x_range)
+    # x_range = x_range.astype(int)
+    # y_range = y_range.astype(int)
+    # smooth_curve = np.column_stack((x_range, y_range))
+    # cv2.polylines(
+    #     image, [smooth_curve], isClosed=False, color=color, thickness=THICKNESS
+    # )
+
+    # for pt1, pt2 in zip(seven_obj_keypoints, seven_obj_keypoints[1:]):
+    #     # cv2.polylines(track["overlay_image"],[obj_keypoints[1:]],False,color,THICKNESS)
+    #     cv2.line(track["overlay_image"], pt1, pt2, color, THICKNESS)
+
+
 def main(argv: Optional[list[str]] = None):
     model = YOLO(MODEL_PATH)
     lstresults = model.track(
@@ -205,9 +245,9 @@ def main(argv: Optional[list[str]] = None):
     overlay_img_array: list[np.ndarray] = []
     for img_ind, result in enumerate(lstresults):
         img = np.array(result.orig_img)
-        boxes = result.boxes.xyxy.int().cpu().tolist()
-        ids = result.boxes.id.int().cpu().tolist()
-        keypoints = result.keypoints.xy.int().cpu().tolist()
+        boxes: list = result.boxes.xyxy.int().cpu().tolist()
+        ids: list = result.boxes.id.int().cpu().tolist()
+        keypoints: list = result.keypoints.xy.int().cpu().tolist()
 
         for obj_bbox_xyxy, track_id, obj_keypoints in zip(boxes, ids, keypoints):
             # bbox and id preparation
@@ -228,10 +268,7 @@ def main(argv: Optional[list[str]] = None):
 
             # drawing on the overlay sperm image
             if img_ind % OVERLAY_IMAGE_SAMPLE_RATE == 0:
-                color = next(COLOR_LIST)
-                draw_head_ellipse(v1, v2, track["overlay_image"], color)
-                for pt1, pt2 in zip(obj_keypoints[1:], obj_keypoints[2:]):
-                    cv2.line(track["overlay_image"], pt1, pt2, color, THICKNESS)
+                draw_overlay_image(v1, v2, obj_keypoints[1:], track["overlay_image"])
 
             track["head_angle"].append(vec_angle(v1, v2))
             if track["sperm_image"] is None:
