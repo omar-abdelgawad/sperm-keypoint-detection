@@ -1,21 +1,26 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import sys
 import cv2
+import argparse
 from ultralytics import YOLO
 from collections import defaultdict
 from scipy.fft import rfft, rfftfreq
-from scipy import interpolate
 from typing import Optional
+from typing import Sequence
 from typing import Any
 from itertools import cycle
 
 # TODO: clean main function by finishing the projection function and using it.
 # TODO: Does it make sense to use classes here?
 # TODO: switch development to windows.
-# TODO: produce an image of an overlay of the sperm across multiple frames.
 # TODO: Maybe try to interpolate the points in a polynomial instead of connecting them with a line.
 # TODO: estimate the amplitude and the head frequency.
+# TODO: add arguments from argument parser
+# TODO: Tracking should be enhanced + skipping ids??
+# TODO: remove magic numbers.
+# TODO: document and annotate functions.
 # TODO: GUI using tkinter?????
 
 # inputs
@@ -26,16 +31,21 @@ SAMPLING_RATE = 736
 # constants
 MODEL_PATH = "./model/last.pt"
 VIDEO_NAME = os.path.split(INPUT_VIDEO_PATH)[1]
+BLUE = (255, 0, 0)
+GREEN = (0, 255, 0)
+RED = (0, 0, 255)
 X_Y_ID_OFFSET = 10  # px
 FONT = cv2.FONT_HERSHEY_COMPLEX
 FONT_SCALE = 1
-COLOR = (0, 165, 255)
+TEXT_COLOR = (0, 165, 255)
+BBOX_COLOR = GREEN
 THICKNESS = 2
+POINT_RADIUS = 3
 COLOR_LIST = cycle(
     [
         (0, 0, 255),
         (0, 255, 0),
-        (255, 0, 0),
+        BLUE,
         (128, 128, 0),
         (0, 128, 128),
         (128, 0, 128),
@@ -48,23 +58,44 @@ COLOR_LIST = cycle(
 OVERLAY_IMAGE_SAMPLE_RATE = 15
 SPLINE_DEG = 2
 NUM_POINTS_ON_FLAGELLUM = 100
-
+POINTS_1_TO_4_COLOR = GREEN
+POINTS_5_TO__COLOR = BLUE
 # directories
 OUT_DIR = os.path.join("./out", os.path.splitext(VIDEO_NAME)[0])
 OUT_VIDEO_FOLDER = "videos"
 
 
-def find_fps(video_path):
+def find_fps(video_path: str) -> float:
+    """Returns the fps of a video from its path.
+
+    Args:
+        video_path(str): relative or absolute path to video.
+
+    Returns:
+        (float): fps of the video if it exists."""
     return cv2.VideoCapture(video_path).get(cv2.CAP_PROP_FPS)
 
 
-def vec_angle(vec_1, vec_2) -> float:
+def vec_angle(vec_1: np.ndarray, vec_2: np.ndarray) -> float:
+    """Returns the angle in degrees between two vectors."""
+    vec_1 = vec_1.reshape(-1)
+    vec_2 = vec_2.reshape(-1)
     rise = vec_2[1] - vec_1[1]
     run = vec_2[0] - vec_1[0]
     return np.degrees(np.arctan2(rise, run))
 
 
-def write_video_from_img_array(img_array: list[np.ndarray], orig_video_name) -> None:
+def write_video_from_img_array(
+    img_array: list[np.ndarray], orig_video_name: str
+) -> None:
+    """Write Video file to out/videos/projection_overlay+orig_video_name.
+
+    Args:
+        img_array(list[np.ndarray]): list of images that make the videos.
+        orig_video_name(str): name of input video.
+
+    Returns:
+        (None)"""
     height, width, _ = img_array[0].shape
     size = width, height
     overlay_video_name = "projection_overlay_" + orig_video_name
@@ -85,6 +116,15 @@ def write_video_from_img_array(img_array: list[np.ndarray], orig_video_name) -> 
 
 
 def save_amplitude_figures(id_num: int, id_dict: dict, out_dir: str) -> None:
+    """Creates and saves the amplitude figure.
+
+    Args:
+        id_num(int): id of the sperm.
+        id_dict(dict): dict of the sperm with id_num.
+        out_dir(str): dir to image to.
+
+    Returns:
+        None"""
     title = f"Signed Amplitude of last 4 points for id:{id_num}"
     xlabel = "frame count"
     ylabel = "distance between point and head axis in pixels"
@@ -109,7 +149,16 @@ def save_amplitude_figures(id_num: int, id_dict: dict, out_dir: str) -> None:
     plt.close(fig)
 
 
-def save_head_frequency_figure(id_num: int, id_dict: dict, out_dir: str):
+def save_head_frequency_figure(id_num: int, points: list, out_dir: str) -> None:
+    """Creates and saves the head_frequency figure.
+
+    Args:
+        id_num(int): id of the sperm.
+        id_dict(dict): dict of the sperm with id_num.
+        out_dir(str): dir to figure to.
+
+    Returns:
+        None"""
     title = f"head angle vs frame for id: {id_num}"
     xlabel = "frame count"
     ylabel = "angle"
@@ -117,15 +166,24 @@ def save_head_frequency_figure(id_num: int, id_dict: dict, out_dir: str):
     fig.suptitle(title)
     fig.text(0.5, 0.04, xlabel, ha="center")
     fig.text(0.04, 0.5, ylabel, va="center", rotation="vertical")
-    ax.plot(id_dict["head_angle"])
+    ax.plot(points)
     plt.savefig(fname=f"{os.path.join(out_dir,title)}.jpeg")
     plt.close(fig)
 
 
 def save_fft_graph_for_head_frequency(
-    id_num: int, id_dict: dict, sampling_rate: int, out_dir: str
-):
-    signal = id_dict["head_angle"]
+    id_num: int, signal: list, sampling_rate: int, out_dir: str
+) -> None:
+    """Creates and saves the fft graph for the head frequency and estimates it.
+
+    Args:
+        id_num(int): id of the sperm.
+        signal(list): list of points of graph in time domain.
+        sampling_rate(int): rate of sampling to determine actual frequencies.
+        out_dir(str): dir to write figure to.
+
+    Returns:
+        (None)"""
     n = len(signal)
     normalize = n / 2
     fourier: np.ndarray = np.array(rfft(signal))
@@ -142,14 +200,26 @@ def save_fft_graph_for_head_frequency(
     fig.text(0.04, 0.5, ylabel, va="center", rotation="vertical")
     ax.plot(frequency_axis, norm_amplitude)
     ax.axvline(
-        x=estimated_frequency, color="red", linestyle="--", label="Estimated frequency"
+        x=estimated_frequency,
+        color="red",
+        linestyle="--",
+        label=f"Estimated frequency = {estimated_frequency:.1f}",
     )
+    ax.legend()
     # ax.set_xlim(0, 50)
     plt.savefig(fname=f"{os.path.join(out_dir,title)}.jpeg")
     plt.close(fig)
 
 
-def estimate_freq(frequency_axis: np.ndarray, norm_amplitude: np.ndarray):
+def estimate_freq(frequency_axis: np.ndarray, norm_amplitude: np.ndarray) -> float:
+    """Estimates the frequency of the sperm's head by analyzing the graph in the frequency domain.
+
+    Args:
+        frequency_axis(np.ndarray): array of all possible frequencies/domain.
+        norm_amplitude(np.ndarray): array of amplitudes for corresponding frequencies.
+
+    Returns:
+        (float): Estimated frequency of sperm's head"""
     is_increasing = norm_amplitude > np.roll(norm_amplitude, 1)
     is_decreasing = norm_amplitude > np.roll(norm_amplitude, -1)
     is_critical_point = is_increasing & is_decreasing
@@ -160,8 +230,10 @@ def estimate_freq(frequency_axis: np.ndarray, norm_amplitude: np.ndarray):
     return frequency_axis[amp_index]
 
 
-def draw_head_ellipse(v1, v2, img, color) -> None:
-    center_coordinate = (v1 + v2) // 2
+def draw_head_ellipse(
+    v1: np.ndarray, v2: np.ndarray, img: np.ndarray, color: tuple[int, int, int]
+) -> None:
+    center_coordinate = tuple((v1 + v2) // 2)
     dist = int(np.linalg.norm(v2 - v1))
     axes_length = (dist // 2 + 10, dist // 3)
     angle = vec_angle(v1, v2)
@@ -179,44 +251,71 @@ def draw_head_ellipse(v1, v2, img, color) -> None:
     )
 
 
-def draw_overlay_image(v1, v2, seven_obj_keypoints, image) -> None:
+def draw_overlay_image(points, image: np.ndarray) -> None:
+    """Takes list of keypoints and draws an ellipse using the first two then connects the rest.
+
+    Args:
+        points: list of keypoints.
+        image(np.ndarray): image to draw on.
+
+    Returns:
+        (None)"""
     color = next(COLOR_LIST)
-    draw_head_ellipse(v1, v2, image, color)
-
-    points = np.array(seven_obj_keypoints)
-    points = points.reshape((-1, 1, 2))
+    points = np.array(points)
+    draw_head_ellipse(points[0], points[1], image, color)
+    points = points[1:].reshape((-1, 1, 2))
     cv2.polylines(image, [points], isClosed=False, color=color, thickness=THICKNESS)
-    # points_array = np.array(seven_obj_keypoints, dtype=np.int32)
-    # points = sorted(seven_obj_keypoints)
-    # x_coords, y_coords = zip(*points)
-    # tck = interpolate.splrep(x_coords, y_coords)
-    # x_range = np.linspace(
-    #     np.min(x_coords), np.max(x_coords), NUM_POINTS_ON_FLAGELLUM, dtype=np.int32
-    # )
-    # y_range = np.array(interpolate.splev(x_range, tck=tck), dtype=np.int32)
-    # # x_range = x_range.astype(int)
-    # smooth_curve = np.column_stack((x_range, y_range))
-    # cv2.polylines(
-    #     image, [smooth_curve], isClosed=False, color=color, thickness=THICKNESS
-    # )
-    # interpolate.BSpline
-
-    # coefficients = np.polyfit(x_coords, y_coords, POLYNOMIAL_DEG)
-    # x_range = np.linspace(min(x_coords), max(x_coords), 100)
-    # y_range = np.polyval(coefficients, x_range)
-    # x_range = x_range.astype(int)
-    # y_range = y_range.astype(int)
-    # smooth_curve = np.column_stack((x_range, y_range))
-    # cv2.polylines(
-    #     image, [smooth_curve], isClosed=False, color=color, thickness=THICKNESS
-    # )
-
-    # for pt1, pt2 in zip(seven_obj_keypoints, seven_obj_keypoints[1:]):
-    #     # cv2.polylines(track["overlay_image"],[obj_keypoints[1:]],False,color,THICKNESS)
-    #     cv2.line(track["overlay_image"], pt1, pt2, color, THICKNESS)
 
 
-def main(argv: Optional[list[str]] = None):
+def file_or_dir_exist(path: str) -> str:
+    """raises a type exception if a path is not valid and returns it otherwise."""
+    if not os.path.exists(path):
+        raise argparse.ArgumentTypeError(f"expected a valid path, got {path!r}")
+
+    return path
+
+
+def is_valid_magnification(mag: str) -> int:
+    """Should determine if magnification is valid and return a number to use in calculations."""
+    raise NotImplementedError
+
+
+def draw_bbox_and_id(image, top_left_point, bottom_right_point, id):
+    cv2.rectangle(image, top_left_point, bottom_right_point, BBOX_COLOR, THICKNESS)
+    cv2.putText(
+        image,
+        f"{id}",
+        (top_left_point[0] + X_Y_ID_OFFSET, top_left_point[1] + X_Y_ID_OFFSET),
+        FONT,
+        FONT_SCALE,
+        TEXT_COLOR,
+        THICKNESS,
+    )
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    """parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-i",
+        "--input_path",
+        default=os.path.join(".", "input_videos"),
+        type=file_or_dir_exist,
+        help="specefy the input file path or dir of files. (defualt: %(default)s)",
+    )
+    parser.add_argument(
+        "-m",
+        "--magnif",
+        required=True,
+        type=is_valid_magnification,
+        help="specify the microscope magnification used. No default value",
+    )
+    parser.add_argument(
+        "-r",
+        "--rate",
+        required=True,
+        type=int,
+        help="specify the sampling rate of the input video(s) for calculating the fourier transform. No default value.",
+    )"""
     model = YOLO(MODEL_PATH)
     lstresults = model.track(
         source=INPUT_VIDEO_PATH,
@@ -227,9 +326,9 @@ def main(argv: Optional[list[str]] = None):
         name=OUT_VIDEO_FOLDER,
     )
     if model.device is None or model.device.type != "cuda":
-        print(f"Can't find gpu/cuda. Using {model.device} instead.")
+        print(f"Can't find gpu/cuda. Used {model.device} instead.")
     else:
-        print("Used cuda for inference.")
+        print("Used cuda during inference.")
 
     track_history_dict: defaultdict[int, dict[str, Any]] = defaultdict(
         lambda: {
@@ -253,27 +352,19 @@ def main(argv: Optional[list[str]] = None):
             # bbox and id preparation
             x1, y1, x2, y2 = obj_bbox_xyxy
             track = track_history_dict[track_id]
-            cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 5)
-            cv2.putText(
-                img,
-                f"{track_id}",
-                (x1 + X_Y_ID_OFFSET, y1 + X_Y_ID_OFFSET),
-                FONT,
-                FONT_SCALE,
-                COLOR,
-                THICKNESS,
-            )
+            # drawing on the overlay sperm image
+            draw_bbox_and_id(img, (x1, y1), (x2, y2), track_id)
+            if img_ind % OVERLAY_IMAGE_SAMPLE_RATE == 0:
+                draw_overlay_image(obj_keypoints, track["overlay_image"])
+
             v1 = np.array(obj_keypoints[0])
             v2 = np.array(obj_keypoints[1])
-
-            # drawing on the overlay sperm image
-            if img_ind % OVERLAY_IMAGE_SAMPLE_RATE == 0:
-                draw_overlay_image(v1, v2, obj_keypoints[1:], track["overlay_image"])
 
             track["head_angle"].append(vec_angle(v1, v2))
             if track["sperm_image"] is None:
                 track["sperm_image"] = np.array(result.orig_img[y1:y2, x1:x2])
-            line_to_draw: list[np.ndarray] = [v1, v2]
+
+            straight_line_projection_points: list[np.ndarray] = [v1, v2]
             for i, p1 in enumerate(obj_keypoints[2:], start=2):
                 v3 = np.array(p1)
 
@@ -295,15 +386,23 @@ def main(argv: Optional[list[str]] = None):
                 projection_length: float = np.linalg.norm(projection_pt - v3) * np.sign(
                     np.cross(np.squeeze(projection_line), np.squeeze(b))
                 )
-                line_to_draw.append(projection_pt)
+                straight_line_projection_points.append(projection_pt)
 
-                cv2.circle(img, v3, 3, (0, 0, 200) if i < 3 else (255, 0, 0), 4)
+                cv2.circle(
+                    img,
+                    v3,
+                    POINT_RADIUS,
+                    POINTS_1_TO_4_COLOR if i < 3 else POINTS_5_TO__COLOR,
+                    THICKNESS,
+                )
                 cv2.line(img, v3, projection_pt, (0, 255, 0), 2)
                 if i > 3:
                     track[f"p{i+1}"].append(projection_length)
 
             # drawing on overlay_video
-            for pt1, pt2 in zip(line_to_draw, line_to_draw[1:]):
+            for pt1, pt2 in zip(
+                straight_line_projection_points, straight_line_projection_points[1:]
+            ):
                 cv2.line(img, tuple(pt1), tuple(pt2), (255, 0, 0), 4)
         overlay_img_array.append(img)
     # start writing files to the out directories
@@ -311,25 +410,31 @@ def main(argv: Optional[list[str]] = None):
     if not os.path.exists(OUT_DIR):
         os.makedirs(OUT_DIR)
 
+    print("Writing Overlayed video.")
     write_video_from_img_array(overlay_img_array, VIDEO_NAME)
-    for id in track_history_dict:
-        id_out_dir = os.path.join(OUT_DIR, f"{id}")
+
+    print("Writing ID folders")
+    for id, track in track_history_dict.items():
+        id_out_dir = os.path.join(OUT_DIR, f"id:{id}")
         if not os.path.exists(id_out_dir):
             os.makedirs(id_out_dir)
         cv2.imwrite(
             os.path.join(id_out_dir, f"id:{id}_sperm_image.jpeg"),
-            track_history_dict[id]["sperm_image"],
+            track["sperm_image"],
         )
-        save_amplitude_figures(id, track_history_dict[id], id_out_dir)
-        save_head_frequency_figure(id, track_history_dict[id], id_out_dir)
+        save_amplitude_figures(id, track, id_out_dir)
+        save_head_frequency_figure(id, track["head_angle"], id_out_dir)
         save_fft_graph_for_head_frequency(
-            id, track_history_dict[id], SAMPLING_RATE, id_out_dir
+            id, track["head_angle"], SAMPLING_RATE, id_out_dir
         )
         cv2.imwrite(
             os.path.join(id_out_dir, f"id:{id}_sperm_overlay_image.jpeg"),
-            track_history_dict[id]["overlay_image"],
+            track["overlay_image"],
         )
+
+    print("Task Finished succesfully.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
