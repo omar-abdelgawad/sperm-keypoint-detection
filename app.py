@@ -6,9 +6,12 @@ from ultralytics import YOLO
 from collections import defaultdict
 from scipy.fft import rfft, rfftfreq
 from typing import Optional
-from typing import Literal
 from typing import Any
+from itertools import cycle
 
+# TODO: clean main function by finishing the projection function and using it.
+# TODO: Does it make sense to use classes here?
+# TODO: switch development to windows.
 # TODO: produce an image of an overlay of the sperm across multiple frames.
 # TODO: Maybe try to interpolate the points in a polynomial instead of connecting them with a line.
 # TODO: estimate the amplitude and the head frequency.
@@ -22,11 +25,26 @@ SAMPLING_RATE = 736
 # constants
 MODEL_PATH = "./model/last.pt"
 VIDEO_NAME = os.path.split(INPUT_VIDEO_PATH)[1]
-X_Y_ID_OFFSET: Literal[10] = 10  # px
+X_Y_ID_OFFSET = 10  # px
 FONT = cv2.FONT_HERSHEY_COMPLEX
 FONT_SCALE = 1
 COLOR = (0, 165, 255)
 THICKNESS = 2
+COLOR_LIST = cycle(
+    [
+        (0, 0, 255),
+        (0, 255, 0),
+        (255, 0, 0),
+        (128, 128, 0),
+        (0, 128, 128),
+        (128, 0, 128),
+        (255, 128, 0),
+        (0, 128, 255),
+        (128, 0, 255),
+        (255, 0, 128),
+    ]
+)
+OVERLAY_IMAGE_SAMPLE_RATE = 15
 
 # directories
 OUT_DIR = os.path.join("./out", os.path.splitext(VIDEO_NAME)[0])
@@ -54,13 +72,13 @@ def write_video_from_img_array(img_array: list[np.ndarray], orig_video_name) -> 
     out_vid.release()
 
 
-def find_signed_projection_length(
-    projection_point, orig_point, projection_line
-) -> float:
-    projection_length = np.linalg.norm(projection_point - orig_point) * np.sign(
-        np.cross(np.squeeze(projection_line), np.squeeze(b))
-    )
-    return float(projection_length)
+# def find_signed_projection_length(
+#     projection_point, orig_point, projection_line
+# ) -> float:
+#     projection_length = np.linalg.norm(projection_point - orig_point) * np.sign(
+#         np.cross(np.squeeze(projection_line), np.squeeze(b))
+#     )
+#     return float(projection_length)
 
 
 def save_amplitude_figures(id_num: int, id_dict: dict, out_dir: str) -> None:
@@ -139,6 +157,25 @@ def estimate_freq(frequency_axis: np.ndarray, norm_amplitude: np.ndarray):
     return frequency_axis[amp_index]
 
 
+def draw_head_ellipse(v1, v2, img, color) -> None:
+    center_coordinate = (v1 + v2) // 2
+    dist = int(np.linalg.norm(v2 - v1))
+    axes_length = (dist // 2 + 10, dist // 3)
+    angle = vec_angle(v1, v2)
+    start_angle = 0
+    end_angle = 360
+    cv2.ellipse(
+        img,
+        center_coordinate,
+        axes_length,
+        angle,
+        start_angle,
+        end_angle,
+        color,
+        THICKNESS,
+    )
+
+
 def main(argv: Optional[list[str]] = None):
     model = YOLO(MODEL_PATH)
     lstresults = model.track(
@@ -154,9 +191,7 @@ def main(argv: Optional[list[str]] = None):
     else:
         print("Used cuda for inference.")
 
-    track_history_dict: defaultdict[
-        int, dict[str, list[Any] | np.ndarray | None]
-    ] = defaultdict(
+    track_history_dict: defaultdict[int, dict[str, Any]] = defaultdict(
         lambda: {
             "p5": [],
             "p6": [],
@@ -164,11 +199,11 @@ def main(argv: Optional[list[str]] = None):
             "p8": [],
             "head_angle": [],
             "sperm_image": None,
-            "overlay_image": [],
+            "overlay_image": np.zeros_like(lstresults[0].orig_img),
         }
     )
     overlay_img_array: list[np.ndarray] = []
-    for result in lstresults:
+    for img_ind, result in enumerate(lstresults):
         img = np.array(result.orig_img)
         boxes = result.boxes.xyxy.int().cpu().tolist()
         ids = result.boxes.id.int().cpu().tolist()
@@ -190,6 +225,14 @@ def main(argv: Optional[list[str]] = None):
             )
             v1 = np.array(obj_keypoints[0])
             v2 = np.array(obj_keypoints[1])
+
+            # drawing on the overlay sperm image
+            if img_ind % OVERLAY_IMAGE_SAMPLE_RATE == 0:
+                color = next(COLOR_LIST)
+                draw_head_ellipse(v1, v2, track["overlay_image"], color)
+                for pt1, pt2 in zip(obj_keypoints[1:], obj_keypoints[2:]):
+                    cv2.line(track["overlay_image"], pt1, pt2, color, THICKNESS)
+
             track["head_angle"].append(vec_angle(v1, v2))
             if track["sperm_image"] is None:
                 track["sperm_image"] = np.array(result.orig_img[y1:y2, x1:x2])
@@ -221,6 +264,8 @@ def main(argv: Optional[list[str]] = None):
                 cv2.line(img, v3, projection_pt, (0, 255, 0), 2)
                 if i > 3:
                     track[f"p{i+1}"].append(projection_length)
+
+            # drawing on overlay_video
             for pt1, pt2 in zip(line_to_draw, line_to_draw[1:]):
                 cv2.line(img, tuple(pt1), tuple(pt2), (255, 0, 0), 4)
         overlay_img_array.append(img)
@@ -242,6 +287,10 @@ def main(argv: Optional[list[str]] = None):
         save_head_frequency_figure(id, track_history_dict[id], id_out_dir)
         save_fft_graph_for_head_frequency(
             id, track_history_dict[id], SAMPLING_RATE, id_out_dir
+        )
+        cv2.imwrite(
+            os.path.join(id_out_dir, f"id:{id}_sperm_overlay_image.jpeg"),
+            track_history_dict[id]["overlay_image"],
         )
 
 
