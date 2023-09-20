@@ -7,30 +7,26 @@ import argparse
 from ultralytics import YOLO
 from collections import defaultdict
 from scipy.fft import rfft, rfftfreq
+from itertools import cycle
 from typing import Optional
 from typing import Sequence
 from typing import Any
-from itertools import cycle
 
-# TODO: clean main function by finishing the projection function and using it.
-# TODO: Does it make sense to use classes here?
+# TODO: refactor projection to be cleaner.
 # TODO: switch development to windows.
 # TODO: Maybe try to interpolate the points in a polynomial instead of connecting them with a line.
 # TODO: estimate the amplitude and the head frequency.
 # TODO: add arguments from argument parser
 # TODO: Tracking should be enhanced + skipping ids??
-# TODO: remove magic numbers.
-# TODO: document and annotate functions.
 # TODO: GUI using tkinter?????
+# TODO: Add choices to magnification
 
 # inputs
-INPUT_VIDEO_PATH = "other_data/sperm_vids/good_quality/f5 736.avi"
-MAGNIFICATION = None
-SAMPLING_RATE = 736
+# INPUT_VIDEO_PATH = "./other_data/sperm_vids/good_quality/f5 736.avi"
+# SAMPLING_RATE = 736
 
 # constants
 MODEL_PATH = "./model/last.pt"
-VIDEO_NAME = os.path.split(INPUT_VIDEO_PATH)[1]
 BLUE = (255, 0, 0)
 GREEN = (0, 255, 0)
 RED = (0, 0, 255)
@@ -60,8 +56,9 @@ SPLINE_DEG = 2
 NUM_POINTS_ON_FLAGELLUM = 100
 POINTS_1_TO_4_COLOR = GREEN
 POINTS_5_TO__COLOR = BLUE
+PROJECTION_LINE_COLOR = BLUE
 # directories
-OUT_DIR = os.path.join("./out", os.path.splitext(VIDEO_NAME)[0])
+OUT_DIR = "./out"
 OUT_VIDEO_FOLDER = "videos"
 
 
@@ -86,21 +83,22 @@ def vec_angle(vec_1: np.ndarray, vec_2: np.ndarray) -> float:
 
 
 def write_video_from_img_array(
-    img_array: list[np.ndarray], orig_video_name: str
+    img_array: list[np.ndarray], input_video_path: str
 ) -> None:
     """Write Video file to out/videos/projection_overlay+orig_video_name.
 
     Args:
         img_array(list[np.ndarray]): list of images that make the videos.
-        orig_video_name(str): name of input video.
+        input_video_path(str): path of input video.
 
     Returns:
         (None)"""
+    orig_video_name = os.path.split(input_video_path)[1]
     height, width, _ = img_array[0].shape
     size = width, height
     overlay_video_name = "projection_overlay_" + orig_video_name
     video_path = os.path.join(OUT_DIR, OUT_VIDEO_FOLDER, overlay_video_name)
-    out_vid = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*"DIVX"), find_fps(INPUT_VIDEO_PATH), size)  # type: ignore
+    out_vid = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*"DIVX"), find_fps(input_video_path), size)  # type: ignore
     for img in img_array:
         out_vid.write(img)
     out_vid.release()
@@ -277,10 +275,17 @@ def file_or_dir_exist(path: str) -> str:
 
 def is_valid_magnification(mag: str) -> int:
     """Should determine if magnification is valid and return a number to use in calculations."""
+    return 0
     raise NotImplementedError
 
 
-def draw_bbox_and_id(image, top_left_point, bottom_right_point, id):
+def draw_bbox_and_id(
+    image: np.ndarray,
+    top_left_point: tuple[int, int],
+    bottom_right_point: tuple[int, int],
+    id: int,
+) -> None:
+    """Draws bounding box and write id on top left of bbox."""
     cv2.rectangle(image, top_left_point, bottom_right_point, BBOX_COLOR, THICKNESS)
     cv2.putText(
         image,
@@ -293,8 +298,48 @@ def draw_bbox_and_id(image, top_left_point, bottom_right_point, id):
     )
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
-    """parser = argparse.ArgumentParser()
+def project_and_draw_points(
+    image: np.ndarray, v1: np.ndarray, v2: np.ndarray, points: np.ndarray, track: dict
+) -> list[np.ndarray]:
+    straight_line_projection_points: list[np.ndarray] = [v1, v2]
+    for i, p1 in enumerate(points, start=3):
+        v3 = np.array(p1)
+
+        reshape_vec_2d = lambda arr: arr.reshape(len(arr), 1)
+        v1, v2, v3 = map(reshape_vec_2d, (v1, v2, v3))
+        projection_line = v2 - v1
+        b = v3 - v1
+        projection_pt = v1 + np.dot(
+            (
+                (np.dot(projection_line, projection_line.T))
+                / (np.dot(projection_line.T, projection_line) + 1e-5)
+            ),
+            b,
+        )
+        projection_pt = projection_pt.astype(np.int32)
+
+        v3 = v3.reshape(-1)
+        projection_pt = projection_pt.reshape(-1)
+        projection_length: float = np.linalg.norm(projection_pt - v3) * np.sign(
+            np.cross(np.squeeze(projection_line), np.squeeze(b))
+        )
+        straight_line_projection_points.append(projection_pt)
+
+        cv2.circle(
+            image,
+            v3,
+            POINT_RADIUS,
+            POINTS_1_TO_4_COLOR if i < 5 else POINTS_5_TO__COLOR,
+            THICKNESS,
+        )
+        cv2.line(image, v3, projection_pt, GREEN, 2)
+        if i > 4:
+            track[f"p{i}"].append(projection_length)
+    return straight_line_projection_points
+
+
+def handle_parser(argv):
+    parser = argparse.ArgumentParser()
     parser.add_argument(
         "-i",
         "--input_path",
@@ -315,10 +360,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         required=True,
         type=int,
         help="specify the sampling rate of the input video(s) for calculating the fourier transform. No default value.",
-    )"""
+    )
+    args = parser.parse_args(argv)
+    return args
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    global OUT_DIR
+    args = handle_parser(argv)
+    input_video_path = args.input_path
+    input_video_name = os.path.split(input_video_path)[1]
+    OUT_DIR = os.path.join("./out", os.path.splitext(input_video_name)[0])
     model = YOLO(MODEL_PATH)
     lstresults = model.track(
-        source=INPUT_VIDEO_PATH,
+        source=input_video_path,
         save=True,
         show_conf=False,
         show_labels=True,
@@ -352,8 +407,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             # bbox and id preparation
             x1, y1, x2, y2 = obj_bbox_xyxy
             track = track_history_dict[track_id]
-            # drawing on the overlay sperm image
             draw_bbox_and_id(img, (x1, y1), (x2, y2), track_id)
+
+            # drawing on the overlay sperm image
             if img_ind % OVERLAY_IMAGE_SAMPLE_RATE == 0:
                 draw_overlay_image(obj_keypoints, track["overlay_image"])
 
@@ -364,46 +420,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             if track["sperm_image"] is None:
                 track["sperm_image"] = np.array(result.orig_img[y1:y2, x1:x2])
 
-            straight_line_projection_points: list[np.ndarray] = [v1, v2]
-            for i, p1 in enumerate(obj_keypoints[2:], start=2):
-                v3 = np.array(p1)
-
-                reshape_vec_2d = lambda arr: arr.reshape(len(arr), 1)
-                v1, v2, v3 = map(reshape_vec_2d, (v1, v2, v3))
-                projection_line = v2 - v1
-                b = v3 - v1
-                projection_pt = v1 + np.dot(
-                    (
-                        (np.dot(projection_line, projection_line.T))
-                        / (np.dot(projection_line.T, projection_line) + 1e-5)
-                    ),
-                    b,
-                )
-                projection_pt = projection_pt.astype(np.int32)
-
-                v3 = v3.reshape(-1)
-                projection_pt = projection_pt.reshape(-1)
-                projection_length: float = np.linalg.norm(projection_pt - v3) * np.sign(
-                    np.cross(np.squeeze(projection_line), np.squeeze(b))
-                )
-                straight_line_projection_points.append(projection_pt)
-
-                cv2.circle(
-                    img,
-                    v3,
-                    POINT_RADIUS,
-                    POINTS_1_TO_4_COLOR if i < 3 else POINTS_5_TO__COLOR,
-                    THICKNESS,
-                )
-                cv2.line(img, v3, projection_pt, (0, 255, 0), 2)
-                if i > 3:
-                    track[f"p{i+1}"].append(projection_length)
-
-            # drawing on overlay_video
+            straight_line_projection_points = project_and_draw_points(
+                img, v1, v2, obj_keypoints[2:], track
+            )
+            # drawing straight line on overlay_video
             for pt1, pt2 in zip(
                 straight_line_projection_points, straight_line_projection_points[1:]
             ):
-                cv2.line(img, tuple(pt1), tuple(pt2), (255, 0, 0), 4)
+                cv2.line(img, tuple(pt1), tuple(pt2), PROJECTION_LINE_COLOR, THICKNESS)
         overlay_img_array.append(img)
     # start writing files to the out directories
     # Create out Directory
@@ -411,7 +435,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         os.makedirs(OUT_DIR)
 
     print("Writing Overlayed video.")
-    write_video_from_img_array(overlay_img_array, VIDEO_NAME)
+    write_video_from_img_array(overlay_img_array, input_video_path)
 
     print("Writing ID folders")
     for id, track in track_history_dict.items():
@@ -425,7 +449,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         save_amplitude_figures(id, track, id_out_dir)
         save_head_frequency_figure(id, track["head_angle"], id_out_dir)
         save_fft_graph_for_head_frequency(
-            id, track["head_angle"], SAMPLING_RATE, id_out_dir
+            id, track["head_angle"], args.rate, id_out_dir
         )
         cv2.imwrite(
             os.path.join(id_out_dir, f"id:{id}_sperm_overlay_image.jpeg"),
