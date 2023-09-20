@@ -104,15 +104,6 @@ def write_video_from_img_array(
     out_vid.release()
 
 
-# def find_signed_projection_length(
-#     projection_point, orig_point, projection_line
-# ) -> float:
-#     projection_length = np.linalg.norm(projection_point - orig_point) * np.sign(
-#         np.cross(np.squeeze(projection_line), np.squeeze(b))
-#     )
-#     return float(projection_length)
-
-
 def save_amplitude_figures(id_num: int, id_dict: dict, out_dir: str) -> None:
     """Creates and saves the amplitude figure.
 
