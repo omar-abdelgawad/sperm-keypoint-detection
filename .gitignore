@@ -4,6 +4,7 @@ model
 notebooks
 other_data
 out
+output
 runs
 pat.txt
 # Byte-compiled / optimized / DLL files
