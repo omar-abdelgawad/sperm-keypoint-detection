@@ -34,8 +34,8 @@ THICKNESS = 2
 POINT_RADIUS = 3
 COLOR_LIST = cycle(
     [
-        (0, 0, 255),
-        (0, 255, 0),
+        RED,
+        GREEN,
         BLUE,
         (128, 128, 0),
         (0, 128, 128),
