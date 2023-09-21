@@ -12,17 +12,13 @@ from typing import Optional
 from typing import Sequence
 from typing import Any
 
-# TODO: refactor projection to be cleaner.
-# TODO: Maybe try to interpolate the points in a polynomial instead of connecting them with a line.
-# TODO: estimate the amplitude and the head frequency.
-# TODO: add arguments from argument parser
-# TODO: Tracking should be enhanced + skipping ids??
 # TODO: GUI using tkinter?????
+# TODO: refactor projection to be cleaner.
+# TODO: Maybe try to interpolate the points in a polynomial instead of connecti ng them with a line.
+# TODO: Tracking should be enhanced + skipping ids??
 # TODO: Add choices to magnification
+# TODO: estimate the amplitude and the head frequency.
 
-# inputs
-# INPUT_VIDEO_PATH = "./other_data/sperm_vids/good_quality/f5 736.avi"
-# SAMPLING_RATE = 736
 
 # constants
 MODEL_PATH = "./model/last.pt"
@@ -390,8 +386,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     for img_ind, result in enumerate(lstresults):
         img = np.array(result.orig_img)
         boxes: list = result.boxes.xyxy.int().cpu().tolist()
-        ids: list = result.boxes.id.int().cpu().tolist()
         keypoints: list = result.keypoints.xy.int().cpu().tolist()
+        try:
+            ids: list = result.boxes.id.int().cpu().tolist()
+        except AttributeError:
+            continue
 
         for obj_bbox_xyxy, track_id, obj_keypoints in zip(boxes, ids, keypoints):
             # bbox and id preparation
