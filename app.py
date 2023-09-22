@@ -12,12 +12,15 @@ from typing import Optional
 from typing import Sequence
 from typing import Any
 
+# TODO: activate cuda on this device and record the steps.
 # TODO: GUI using tkinter
 # TODO: refactor projection to be cleaner (maybe using sperm class).
 # TODO: Tracking should be enhanced + why is it skipping ids??
 # TODO: Add choices to magnification
 # TODO: estimate the amplitude and the head frequency.
 # TODO: Maybe try to interpolate the points in a polynomial instead of connecti ng them with a line.
+# TODO: change model path to be absolute depending on the executable.
+# TODO: remove warnings
 
 # constants
 MODEL_PATH = "./model/last.pt"
@@ -214,7 +217,7 @@ def estimate_freq(frequency_axis: np.ndarray, norm_amplitude: np.ndarray) -> flo
 
 
 def draw_head_ellipse(
-    v1: np.ndarray, v2: np.ndarray, img: np.ndarray, color: tuple[int, int, int]
+    img: np.ndarray, v1: np.ndarray, v2: np.ndarray, color: tuple[int, int, int]
 ) -> None:
     center_coordinate = tuple((v1 + v2) // 2)
     dist = int(np.linalg.norm(v2 - v1))
@@ -245,7 +248,7 @@ def draw_overlay_image(points, image: np.ndarray) -> None:
         (None)"""
     color = next(COLOR_LIST)
     points = np.array(points)
-    draw_head_ellipse(points[0], points[1], image, color)
+    draw_head_ellipse(image, points[0], points[1], color)
     points = points[1:].reshape((-1, 1, 2))
     cv2.polylines(image, [points], isClosed=False, color=color, thickness=THICKNESS)
 
@@ -330,7 +333,7 @@ def handle_parser(argv):
         "--input_path",
         default=os.path.join(".", "input_videos"),
         type=file_or_dir_exist,
-        help="specefy the input file path or dir of files. (defualt: %(default)s)",
+        help="specify the input file path or dir of files. (defualt: %(default)s)",
     )
     parser.add_argument(
         "-m",
