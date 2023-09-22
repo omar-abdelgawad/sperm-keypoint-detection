@@ -12,13 +12,12 @@ from typing import Optional
 from typing import Sequence
 from typing import Any
 
-# TODO: GUI using tkinter?????
-# TODO: refactor projection to be cleaner.
-# TODO: Maybe try to interpolate the points in a polynomial instead of connecti ng them with a line.
-# TODO: Tracking should be enhanced + skipping ids??
+# TODO: GUI using tkinter
+# TODO: refactor projection to be cleaner (maybe using sperm class).
+# TODO: Tracking should be enhanced + why is it skipping ids??
 # TODO: Add choices to magnification
 # TODO: estimate the amplitude and the head frequency.
-
+# TODO: Maybe try to interpolate the points in a polynomial instead of connecti ng them with a line.
 
 # constants
 MODEL_PATH = "./model/last.pt"
