@@ -5,6 +5,8 @@ import sys
 import cv2
 import argparse
 from ultralytics import YOLO
+from dataclasses import dataclass
+from dataclasses import field
 from collections import defaultdict
 from scipy.fft import rfft, rfftfreq
 from itertools import cycle
@@ -57,6 +59,20 @@ PROJECTION_LINE_COLOR = BLUE
 # directories
 OUT_DIR = "out"
 OUT_VIDEO_FOLDER = "videos"
+
+
+@dataclass
+class Sperm:
+    """Sperm class for holding and displaying data related to a sperm in a video defined by an id."""
+
+    id: int = field()
+    p_num_5: list[Any] = field(default_factory=list, repr=False)
+    p_num_6: list[Any] = field(default_factory=list, repr=False)
+    p_num_7: list[Any] = field(default_factory=list, repr=False)
+    p_num_8: list[Any] = field(default_factory=list, repr=False)
+    head_angle: list[Any] = field(default_factory=list, repr=False)
+    sperm_image: Optional[np.ndarray] = field(default=None)
+    # overlay_image: np.ndarray = field(default_factory=np.zeros_like(lstresults[0].orig_img))
 
 
 def find_fps(video_path: str) -> float:
