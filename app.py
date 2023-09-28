@@ -14,6 +14,7 @@ from typing import Optional
 from typing import Sequence
 from typing import Any
 
+# TODO: seriously try to use cv2.morphologyEx to remove noise it has great potential.
 # TODO: activate cuda on this device and record the steps.
 # TODO: GUI using tkinter
 # TODO: refactor projection to be cleaner (maybe using sperm class).
