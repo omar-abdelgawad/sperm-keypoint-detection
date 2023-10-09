@@ -18,7 +18,6 @@ from typing import Any
 # TODO: seriously try to use cv2.morphologyEx to remove noise it has great potential.
 # TODO: activate cuda on this device and record the steps.
 # TODO: GUI using tkinter
-# TODO: refactor projection to be cleaner (maybe using sperm class).
 # TODO: Tracking should be enhanced + why is it skipping ids??
 # TODO: Add choices to magnification
 # TODO: estimate the amplitude and the head frequency.
@@ -27,7 +26,8 @@ from typing import Any
 # TODO: remove warnings
 
 # constants
-MODEL_PATH = "./model/last.pt"
+EXE_DIR = os.path.dirname(__file__)
+MODEL_PATH = os.path.join(EXE_DIR, "model", "last.pt")
 BLUE = (255, 0, 0)
 GREEN = (0, 255, 0)
 RED = (0, 0, 255)
@@ -117,7 +117,7 @@ class Sperm:
         axes[1, 0].set_title("point 7")
         axes[1, 1].plot(self.p_num_8)
         axes[1, 1].set_title("point 8")
-        plt.savefig(fname=f"{os.path.join(out_dir,title)}.jpeg")
+        plt.savefig(fname=f"{os.path.join(EXE_DIR, out_dir, title)}.jpeg")
         plt.close(fig)
 
     def save_head_frequency_figure(self, out_dir: str) -> None:
@@ -136,7 +136,7 @@ class Sperm:
         fig.text(0.5, 0.04, xlabel, ha="center")
         fig.text(0.04, 0.5, ylabel, va="center", rotation="vertical")
         ax.plot(self.head_angle)
-        plt.savefig(fname=f"{os.path.join(out_dir,title)}.jpeg")
+        plt.savefig(fname=f"{os.path.join(EXE_DIR,out_dir,title)}.jpeg")
         plt.close(fig)
 
     def save_fft_graph_for_head_frequency(
@@ -176,7 +176,7 @@ class Sperm:
         )
         ax.legend()
         # ax.set_xlim(0, 50)
-        plt.savefig(fname=f"{os.path.join(out_dir,title)}.jpeg")
+        plt.savefig(fname=f"{os.path.join(EXE_DIR,out_dir,title)}.jpeg")
         plt.close(fig)
 
 
@@ -215,7 +215,7 @@ def write_video_from_img_array(
     height, width, _ = img_array[0].shape
     size = width, height
     overlay_video_name = "projection_overlay_" + orig_video_name
-    video_path = os.path.join(OUT_DIR, OUT_VIDEO_FOLDER, overlay_video_name)
+    video_path = os.path.join(EXE_DIR, OUT_DIR, OUT_VIDEO_FOLDER, overlay_video_name)
     out_vid = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*"DIVX"), find_fps(input_video_path), size)  # type: ignore
     for img in img_array:
         out_vid.write(img)
@@ -363,7 +363,6 @@ def handle_parser(argv):
     parser.add_argument(
         "-i",
         "--input_path",
-        default=os.path.join(".", "input_videos"),
         type=file_or_dir_exist,
         help="specify the input file path or dir of files. (defualt: %(default)s)",
     )
@@ -456,7 +455,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     print("Writing ID folders")
     for id, sperm in track_history_dict.items():
-        id_out_dir = os.path.join(OUT_DIR, f"id_{id}")
+        id_out_dir = os.path.join(OUT_DIR, f"sperm_id_{id}")
         if not os.path.exists(id_out_dir):
             os.makedirs(id_out_dir)
         cv2.imwrite(
