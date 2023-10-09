@@ -63,6 +63,15 @@ OUT_DIR = "out"
 OUT_VIDEO_FOLDER = "videos"
 
 
+class CustomDefaultdict(defaultdict):
+    def __missing__(self, key):
+        if self.default_factory:
+            dict.__setitem__(self, key, self.default_factory(key))
+            return self[key]
+        else:
+            defaultdict.__missing__(self, key)
+
+
 @dataclass
 class Sperm:
     """Sperm class for holding and displaying data related to a sperm in a video defined by an id."""
@@ -108,6 +117,65 @@ class Sperm:
         plt.savefig(fname=f"{os.path.join(out_dir,title)}.jpeg")
         plt.close(fig)
 
+    def save_head_frequency_figure(self, out_dir: str) -> None:
+        """Creates and saves the head_frequency figure.
+
+        Args:
+            out_dir(str): dir to figure to.
+
+        Returns:
+            None"""
+        title = f"head angle vs frame for id {self.id}"
+        xlabel = "frame count"
+        ylabel = "angle"
+        fig, ax = plt.subplots()
+        fig.suptitle(title)
+        fig.text(0.5, 0.04, xlabel, ha="center")
+        fig.text(0.04, 0.5, ylabel, va="center", rotation="vertical")
+        ax.plot(self.head_angle)
+        plt.savefig(fname=f"{os.path.join(out_dir,title)}.jpeg")
+        plt.close(fig)
+
+    def save_fft_graph_for_head_frequency(
+        self, sampling_rate: int, out_dir: str
+    ) -> None:
+        """Creates and saves the fft graph for the head frequency and estimates it.
+
+        Args:
+            id_num(int): id of the sperm.
+            signal(list): list of points of graph in time domain.
+            sampling_rate(int): rate of sampling to determine actual frequencies.
+            out_dir(str): dir to write figure to.
+
+        Returns:
+            (None)"""
+        signal = self.head_angle
+        n = len(signal)
+        normalize = n / 2
+        fourier: np.ndarray = np.array(rfft(signal))
+        frequency_axis = rfftfreq(n, d=1.0 / sampling_rate)
+        norm_amplitude = np.abs(fourier / normalize)
+        estimated_frequency = estimate_freq(frequency_axis, norm_amplitude)
+
+        title = f"fourier transform of head frequency for id {self.id}"
+        xlabel = "frequencies"
+        ylabel = "norm amplitude"
+        fig, ax = plt.subplots()
+        fig.suptitle(title)
+        fig.text(0.5, 0.04, xlabel, ha="center")
+        fig.text(0.04, 0.5, ylabel, va="center", rotation="vertical")
+        ax.plot(frequency_axis, norm_amplitude)
+        ax.axvline(
+            x=estimated_frequency,
+            color="red",
+            linestyle="--",
+            label=f"Estimated frequency = {estimated_frequency:.1f}",
+        )
+        ax.legend()
+        # ax.set_xlim(0, 50)
+        plt.savefig(fname=f"{os.path.join(out_dir,title)}.jpeg")
+        plt.close(fig)
+
 
 def find_fps(video_path: str) -> float:
     """Returns the fps of a video from its path.
@@ -149,102 +217,6 @@ def write_video_from_img_array(
     for img in img_array:
         out_vid.write(img)
     out_vid.release()
-
-
-def save_amplitude_figures(id_num: int, id_dict: dict, out_dir: str) -> None:
-    """Creates and saves the amplitude figure.
-
-    Args:
-        id_num(int): id of the sperm.
-        id_dict(dict): dict of the sperm with id_num.
-        out_dir(str): dir to image to.
-
-    Returns:
-        None"""
-    title = f"Signed Amplitude of last 4 points for id {id_num}"
-    xlabel = "frame count"
-    ylabel = "distance between point and head axis in pixels"
-    fig, axes = plt.subplots(2, 2, sharey=True, sharex=True)
-    fig.suptitle(title)
-    fig.text(0.5, 0.04, xlabel, ha="center")
-    fig.text(0.04, 0.5, ylabel, va="center", rotation="vertical")
-    for i in range(2):
-        for j in range(2):
-            axes[i, j].axhline(
-                y=0, color="black", linestyle="-", linewidth=2, label=None
-            )
-    axes[0, 0].plot(id_dict["p5"])
-    axes[0, 0].set_title("point 5")
-    axes[0, 1].plot(id_dict["p6"])
-    axes[0, 1].set_title("point 6")
-    axes[1, 0].plot(id_dict["p7"])
-    axes[1, 0].set_title("point 7")
-    axes[1, 1].plot(id_dict["p8"])
-    axes[1, 1].set_title("point 8")
-    plt.savefig(fname=f"{os.path.join(out_dir,title)}.jpeg")
-    plt.close(fig)
-
-
-def save_head_frequency_figure(id_num: int, points: list, out_dir: str) -> None:
-    """Creates and saves the head_frequency figure.
-
-    Args:
-        id_num(int): id of the sperm.
-        id_dict(dict): dict of the sperm with id_num.
-        out_dir(str): dir to figure to.
-
-    Returns:
-        None"""
-    title = f"head angle vs frame for id {id_num}"
-    xlabel = "frame count"
-    ylabel = "angle"
-    fig, ax = plt.subplots()
-    fig.suptitle(title)
-    fig.text(0.5, 0.04, xlabel, ha="center")
-    fig.text(0.04, 0.5, ylabel, va="center", rotation="vertical")
-    ax.plot(points)
-    plt.savefig(fname=f"{os.path.join(out_dir,title)}.jpeg")
-    plt.close(fig)
-
-
-def save_fft_graph_for_head_frequency(
-    id_num: int, signal: list, sampling_rate: int, out_dir: str
-) -> None:
-    """Creates and saves the fft graph for the head frequency and estimates it.
-
-    Args:
-        id_num(int): id of the sperm.
-        signal(list): list of points of graph in time domain.
-        sampling_rate(int): rate of sampling to determine actual frequencies.
-        out_dir(str): dir to write figure to.
-
-    Returns:
-        (None)"""
-    n = len(signal)
-    normalize = n / 2
-    fourier: np.ndarray = np.array(rfft(signal))
-    frequency_axis = rfftfreq(n, d=1.0 / sampling_rate)
-    norm_amplitude = np.abs(fourier / normalize)
-    estimated_frequency = estimate_freq(frequency_axis, norm_amplitude)
-
-    title = f"fourier transform of head frequency for id {id_num}"
-    xlabel = "frequencies"
-    ylabel = "norm amplitude"
-    fig, ax = plt.subplots()
-    fig.suptitle(title)
-    fig.text(0.5, 0.04, xlabel, ha="center")
-    fig.text(0.04, 0.5, ylabel, va="center", rotation="vertical")
-    ax.plot(frequency_axis, norm_amplitude)
-    ax.axvline(
-        x=estimated_frequency,
-        color="red",
-        linestyle="--",
-        label=f"Estimated frequency = {estimated_frequency:.1f}",
-    )
-    ax.legend()
-    # ax.set_xlim(0, 50)
-    plt.savefig(fname=f"{os.path.join(out_dir,title)}.jpeg")
-    plt.close(fig)
 
 
 def estimate_freq(frequency_axis: np.ndarray, norm_amplitude: np.ndarray) -> float:
