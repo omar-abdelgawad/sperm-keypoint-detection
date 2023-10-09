@@ -117,7 +117,7 @@ class Sperm:
         axes[1, 0].set_title("point 7")
         axes[1, 1].plot(self.p_num_8)
         axes[1, 1].set_title("point 8")
-        plt.savefig(fname=f"{os.path.join(EXE_DIR, out_dir, title)}.jpeg")
+        plt.savefig(fname=f"{os.path.join(out_dir, title)}.jpeg")
         plt.close(fig)
 
     def save_head_frequency_figure(self, out_dir: str) -> None:
@@ -136,7 +136,7 @@ class Sperm:
         fig.text(0.5, 0.04, xlabel, ha="center")
         fig.text(0.04, 0.5, ylabel, va="center", rotation="vertical")
         ax.plot(self.head_angle)
-        plt.savefig(fname=f"{os.path.join(EXE_DIR,out_dir,title)}.jpeg")
+        plt.savefig(fname=f"{os.path.join(out_dir,title)}.jpeg")
         plt.close(fig)
 
     def save_fft_graph_for_head_frequency(
@@ -176,7 +176,7 @@ class Sperm:
         )
         ax.legend()
         # ax.set_xlim(0, 50)
-        plt.savefig(fname=f"{os.path.join(EXE_DIR,out_dir,title)}.jpeg")
+        plt.savefig(fname=f"{os.path.join(out_dir,title)}.jpeg")
         plt.close(fig)
 
 
@@ -215,7 +215,7 @@ def write_video_from_img_array(
     height, width, _ = img_array[0].shape
     size = width, height
     overlay_video_name = "projection_overlay_" + orig_video_name
-    video_path = os.path.join(EXE_DIR, OUT_DIR, OUT_VIDEO_FOLDER, overlay_video_name)
+    video_path = os.path.join(OUT_DIR, OUT_VIDEO_FOLDER, overlay_video_name)
     out_vid = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*"DIVX"), find_fps(input_video_path), size)  # type: ignore
     for img in img_array:
         out_vid.write(img)
@@ -389,7 +389,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = handle_parser(argv)
     input_video_path = args.input_path
     input_video_name = os.path.split(input_video_path)[1]
-    OUT_DIR = os.path.join(OUT_DIR, os.path.splitext(input_video_name)[0])
+    OUT_DIR = os.path.join(EXE_DIR, OUT_DIR, os.path.splitext(input_video_name)[0])
     model = YOLO(MODEL_PATH)
     lstresults = model.track(
         source=input_video_path,
