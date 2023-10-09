@@ -78,13 +78,16 @@ class Sperm:
 
     id: int = field()
     sperm_overlay_image_shape: InitVar[tuple] = field()
-    sperm_overlay_image: np.ndarray = field(default=np.zeros(sperm_overlay_image_shape))
+    sperm_overlay_image: np.ndarray = field(init=False)
     p_num_5: list[Any] = field(default_factory=list, repr=False)
     p_num_6: list[Any] = field(default_factory=list, repr=False)
     p_num_7: list[Any] = field(default_factory=list, repr=False)
     p_num_8: list[Any] = field(default_factory=list, repr=False)
     head_angle: list[Any] = field(default_factory=list, repr=False)
     sperm_image: Optional[np.ndarray] = field(default=None)
+
+    def __post_init__(self, sperm_overlay_image_shape):
+        self.sperm_overlay_image = np.zeros(sperm_overlay_image_shape)
 
     def save_amplitude_figures(self, out_dir: str) -> None:
         """Creates and saves the amplitude figures of last 4 points of the Sperm.
@@ -309,7 +312,7 @@ def draw_bbox_and_id(
 
 
 def project_and_draw_points(
-    image: np.ndarray, v1: np.ndarray, v2: np.ndarray, points: np.ndarray, track: dict
+    image: np.ndarray, v1: np.ndarray, v2: np.ndarray, points: np.ndarray, sperm: Sperm
 ) -> list[np.ndarray]:
     straight_line_projection_points: list[np.ndarray] = [v1, v2]
     for i, p1 in enumerate(points, start=3):
@@ -343,8 +346,15 @@ def project_and_draw_points(
             THICKNESS,
         )
         cv2.line(image, v3, projection_pt, GREEN, 2)
-        if i > 4:
-            track[f"p{i}"].append(projection_length)
+        if i == 5:
+            sperm.p_num_5.append(projection_length)
+        if i == 6:
+            sperm.p_num_6.append(projection_length)
+        if i == 7:
+            sperm.p_num_7.append(projection_length)
+        if i == 8:
+            sperm.p_num_8.append(projection_length)
+
     return straight_line_projection_points
 
 
@@ -395,16 +405,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     else:
         print("Used cuda during inference.")
 
-    track_history_dict: defaultdict[int, dict[str, Any]] = defaultdict(
-        lambda: {
-            "p5": [],
-            "p6": [],
-            "p7": [],
-            "p8": [],
-            "head_angle": [],
-            "sperm_image": None,
-            "overlay_image": np.zeros_like(lstresults[0].orig_img),
-        }
+    track_history_dict: CustomDefaultdict[int, dict[str, Any]] = CustomDefaultdict(
+        lambda key: Sperm(
+            id=key, sperm_overlay_image_shape=lstresults[0].orig_img.shape
+        )
     )
     overlay_img_array: list[np.ndarray] = []
     for img_ind, result in enumerate(lstresults):
@@ -419,22 +423,22 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         for obj_bbox_xyxy, track_id, obj_keypoints in zip(boxes, ids, keypoints):
             # bbox and id preparation
             x1, y1, x2, y2 = obj_bbox_xyxy
-            track = track_history_dict[track_id]
+            cur_sperm = track_history_dict[track_id]
             draw_bbox_and_id(img, (x1, y1), (x2, y2), track_id)
 
             # drawing on the overlay sperm image
             if img_ind % OVERLAY_IMAGE_SAMPLE_RATE == 0:
-                draw_overlay_image(obj_keypoints, track["overlay_image"])
+                draw_overlay_image(obj_keypoints, cur_sperm.sperm_overlay_image)
 
             v1 = np.array(obj_keypoints[0])
             v2 = np.array(obj_keypoints[1])
 
-            track["head_angle"].append(vec_angle(v1, v2))
-            if track["sperm_image"] is None:
-                track["sperm_image"] = np.array(result.orig_img[y1:y2, x1:x2])
+            cur_sperm.head_angle.append(vec_angle(v1, v2))
+            if cur_sperm.sperm_image is None:
+                cur_sperm.sperm_image = np.array(result.orig_img[y1:y2, x1:x2])
 
             straight_line_projection_points = project_and_draw_points(
-                img, v1, v2, obj_keypoints[2:], track
+                img, v1, v2, obj_keypoints[2:], cur_sperm
             )
             # drawing straight line on overlay_video
             for pt1, pt2 in zip(
@@ -451,22 +455,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     write_video_from_img_array(overlay_img_array, input_video_path)
 
     print("Writing ID folders")
-    for id, track in track_history_dict.items():
+    for id, sperm in track_history_dict.items():
         id_out_dir = os.path.join(OUT_DIR, f"id_{id}")
         if not os.path.exists(id_out_dir):
             os.makedirs(id_out_dir)
         cv2.imwrite(
             os.path.join(id_out_dir, f"id_{id}_sperm_image.jpeg"),
-            track["sperm_image"],
+            sperm.sperm_image,
         )
-        save_amplitude_figures(id, track, id_out_dir)
-        save_head_frequency_figure(id, track["head_angle"], id_out_dir)
-        save_fft_graph_for_head_frequency(
-            id, track["head_angle"], args.rate, id_out_dir
-        )
+        sperm.save_amplitude_figures(id_out_dir)
+        sperm.save_head_frequency_figure(id_out_dir)
+        sperm.save_fft_graph_for_head_frequency(args.rate, id_out_dir)
         cv2.imwrite(
             os.path.join(id_out_dir, f"id_{id}_sperm_overlay_image.jpeg"),
-            track["overlay_image"],
+            sperm.sperm_overlay_image,
         )
 
     print("Task Finished succesfully.")
