@@ -12,15 +12,17 @@ from typing import Any
 import tkinter as tk
 from sperm import Sperm
 
-# TODO: seriously try to use cv2.morphologyEx to remove noise it has great potential.
-# TODO: activate cuda on this device and record the steps.
+# mandatory TODO(s):
 # TODO: GUI using tkinter
-# TODO: Tracking should be enhanced + why is it skipping ids??
+# TODO: activate cuda on this device and record the steps.
 # TODO: Add choices to magnification
-# TODO: estimate the amplitude and the head frequency.
-# TODO: Maybe try to interpolate the points in a polynomial instead of connecti ng them with a line.
-# TODO: change model path to be absolute depending on the executable.
-# TODO: remove warnings
+# Other TODO(s):
+# TODO: seriously try to use cv2.morphologyEx to remove noise it has great potential.
+# TODO: Tracking should be enhanced + why is it skipping ids??
+# TODO: estimate the amplitude and the head frequency as single numbers in the end.
+# TODO: Maybe try to interpolate the points in a polynomial instead of connecting them with a line.
+# TODO: remove warnings from exe file
+# TODO: add pytest
 
 # constants
 EXE_DIR = os.path.dirname(__file__)
