@@ -272,7 +272,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         name=OUT_VIDEO_FOLDER,
     )
     if model.device is None or model.device.type != "cuda":
-        print(f"Can't find gpu/cuda. Used {model.device} instead.")
+        print(f"Couldn't find gpu/cuda. Used {model.device} instead.")
     else:
         print("Used cuda during inference.")
 
@@ -330,17 +330,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         id_out_dir = os.path.join(OUT_DIR, f"sperm_id_{id}")
         if not os.path.exists(id_out_dir):
             os.makedirs(id_out_dir)
-        cv2.imwrite(
-            os.path.join(id_out_dir, f"id_{id}_sperm_image.jpeg"),
-            sperm.sperm_image,
-        )
+        sperm.save_sperm_image(id_out_dir)
         sperm.save_amplitude_figures(id_out_dir)
         sperm.save_head_frequency_figure(id_out_dir)
         sperm.save_fft_graph_for_head_frequency(args.rate, id_out_dir)
-        cv2.imwrite(
-            os.path.join(id_out_dir, f"id_{id}_sperm_overlay_image.jpeg"),
-            sperm.sperm_overlay_image,
-        )
+        sperm.save_sperm_overlay_image(id_out_dir)
 
     print("Task Finished succesfully.")
     return 0

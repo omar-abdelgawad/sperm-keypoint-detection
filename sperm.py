@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import cv2
 import matplotlib.pyplot as plt
 from dataclasses import dataclass
 from dataclasses import field
@@ -25,6 +26,33 @@ class Sperm:
 
     def __post_init__(self, sperm_overlay_image_shape):
         self.sperm_overlay_image = np.zeros(sperm_overlay_image_shape)
+
+    def save_sperm_image(self, out_dir: str) -> None:
+        """Saves the sperm image to out_dir.
+
+        Args:
+            out_dir(str): dir to save image to.
+
+        Returns:
+            None"""
+        if self.sperm_image is None:
+            raise ValueError("sperm image is None")
+        cv2.imwrite(
+            os.path.join(out_dir, f"id_{self.id}_sperm_image.jpeg"), self.sperm_image
+        )
+
+    def save_sperm_overlay_image(self, out_dir: str) -> None:
+        """Saves the sperm overlay image to out_dir.
+
+        Args:
+            out_dir(str): dir to save image to.
+
+        Returns:
+            None"""
+        cv2.imwrite(
+            os.path.join(out_dir, f"id_{self.id}_sperm_overlay_image.jpeg"),
+            self.sperm_overlay_image,
+        )
 
     def save_amplitude_figures(self, out_dir: str) -> None:
         """Creates and saves the amplitude figures of last 4 points of the Sperm.
