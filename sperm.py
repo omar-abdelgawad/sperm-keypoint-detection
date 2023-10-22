@@ -1,13 +1,15 @@
-import numpy as np
+"""Module for Sperm class and related functions."""
 import os
-import cv2
-import matplotlib.pyplot as plt
 from dataclasses import dataclass
 from dataclasses import field
 from dataclasses import InitVar
-from scipy.fft import rfft, rfftfreq
 from typing import Optional
 from typing import Any
+
+import cv2
+import numpy as np
+from scipy.fft import rfft, rfftfreq
+import matplotlib.pyplot as plt
 
 
 @dataclass
