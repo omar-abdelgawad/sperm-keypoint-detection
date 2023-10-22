@@ -3,6 +3,8 @@ import os
 import sys
 import argparse
 import tkinter as tk
+from tkinter import filedialog
+from tkinter import ttk
 from collections import defaultdict
 from itertools import cycle
 from typing import Optional
@@ -60,6 +62,21 @@ NUM_POINTS_ON_FLAGELLUM = 100
 POINTS_1_TO_4_COLOR = GREEN
 POINTS_5_TO__COLOR = BLUE
 PROJECTION_LINE_COLOR = BLUE
+ALLOWED_VIDEO_EXTENSIONS = (
+    ".asf",
+    ".avi",
+    ".gif",
+    ".m4v",
+    ".mkv",
+    ".mov",
+    ".mp4",
+    ".mpeg",
+    ".mpg",
+    ".ts",
+    ".wmv",
+    ".webm",
+)
+MAGNIFICATION_LIST = ("5X", "10X", "40X", "63X")
 # directories
 OUT_DIR = "out"
 OUT_VIDEO_FOLDER = "videos"
@@ -238,6 +255,7 @@ def handle_parser(argv):
     parser.add_argument(
         "-i",
         "--input_path",
+        required=True,
         type=file_or_dir_exist,
         help="specify the input file path or dir of files. (defualt: %(default)s)",
     )
@@ -259,9 +277,105 @@ def handle_parser(argv):
     return args
 
 
+class App:
+    def __init__(self, main_function) -> None:
+        self.main_function = main_function
+        self.window = tk.Tk()
+        self.window.configure(bg="white")
+        self.window.title("Sperm Analyzer")
+        self.window.geometry("500x500")
+        self.window.resizable(False, False)
+        # argv to be passed later
+        self.mag = tk.StringVar()
+        self.input_path = tk.StringVar()
+        self.sampling_rate = tk.StringVar()
+        # first row
+        self.input_path_button = tk.Button(
+            self.window, text="Browse video", command=self.open_video
+        )
+        self.magnification_combobox = ttk.Combobox(
+            self.window,
+            width=10,
+            textvariable=self.mag,
+            values=MAGNIFICATION_LIST,
+            state="readonly",
+        )
+        # create an entry for writing sampling rate as an integer
+        self.sampling_rate_entry = tk.Entry(
+            self.window, textvariable=self.sampling_rate, width=10, justify="center"
+        )
+        # place them side by side but centered and with space between them without grid
+        self.input_path_button.place(relx=0.2, rely=0.3, anchor=tk.CENTER)
+        self.magnification_combobox.place(relx=0.5, rely=0.3, anchor=tk.CENTER)
+        self.sampling_rate_entry.place(relx=0.8, rely=0.3, anchor=tk.CENTER)
+        # create three labels above them
+        self.input_path_label = tk.Label(self.window, text="Input Video Path")
+        self.input_path_label.place(relx=0.2, rely=0.2, anchor=tk.CENTER)
+        self.magnification_label = tk.Label(self.window, text="Magnification")
+        self.magnification_label.place(relx=0.5, rely=0.2, anchor=tk.CENTER)
+        self.sampling_rate_label = tk.Label(self.window, text="Sampling Rate")
+        self.sampling_rate_label.place(relx=0.8, rely=0.2, anchor=tk.CENTER)
+        # create one more label for saved input path label
+        self.saved_input_path_label = tk.Label(
+            self.window, text="No file selected", width=20
+        )
+        self.saved_input_path_label.place(
+            relx=0.5, rely=0.5, anchor=tk.CENTER, height=50
+        )
+        # logger label
+        self.logger_label = tk.Label(self.window, text="Welcome", width=50)
+        self.logger_label.place(relx=0.5, rely=0.8, anchor=tk.CENTER)
+        # second row
+        self.submit_button = tk.Button(self.window, text="Submit", command=self.submit)
+        self.submit_button.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
+
+    def open_video(self) -> None:
+        """Opens a file dialog to browse a video file."""
+        self.input_path.set(
+            filedialog.askopenfilename(
+                filetypes=[
+                    (
+                        "Video Files",
+                        " ".join([f"*{ext}" for ext in ALLOWED_VIDEO_EXTENSIONS]),
+                    )
+                ]
+            )
+        )
+        self.saved_input_path_label.configure(
+            text=os.path.split(self.input_path.get())[1]
+        )
+
+    def submit(self) -> None:
+        """Callback function for submit button."""
+        print("submit button pressed")
+        argv_dict = {
+            "-i": self.input_path.get(),
+            "-m": self.mag.get(),
+            "-r": self.sampling_rate.get(),
+        }
+        items = [v for k, v in argv_dict.items()]
+        for item in items:
+            if not item:
+                self.logger_label.configure(text="Please provide all fields")
+                return
+        # make argv from the dict that contains all keys and values as two elements
+        # lists
+        argv = [item for tup in argv_dict.items() for item in tup]
+        print(argv)
+        self.logger_label.configure(text="Task started")
+        self.window.update()
+        self.main_function(argv)
+        self.logger_label.configure(text="Task finished")
+
+    def run(self) -> None:
+        """Run main app loop."""
+        self.window.mainloop()
+
+
 def main(argv: Optional[Sequence[str]]) -> int:
     """Graphical user interface is here"""
-    functional_main(argv)
+    app = App(functional_main)
+    app.run()
     return 0
 
 
