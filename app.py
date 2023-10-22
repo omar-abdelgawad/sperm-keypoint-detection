@@ -1,15 +1,18 @@
-import numpy as np
+"""Script for Main app entry point"""
 import os
 import sys
-import cv2
 import argparse
-from ultralytics import YOLO
+import tkinter as tk
 from collections import defaultdict
 from itertools import cycle
 from typing import Optional
 from typing import Sequence
 from typing import Any
-import tkinter as tk
+
+import numpy as np
+import cv2
+from ultralytics import YOLO
+
 from sperm import Sperm
 
 # mandatory TODO(s):
@@ -160,21 +163,21 @@ def file_or_dir_exist(path: str) -> str:
 
 def is_valid_magnification(mag: str) -> int:
     """Should determine if magnification is valid and return a number to use in calculations."""
+    # TODO: implement this function
     return 0
-    raise NotImplementedError
 
 
 def draw_bbox_and_id(
     image: np.ndarray,
     top_left_point: tuple[int, int],
     bottom_right_point: tuple[int, int],
-    id: int,
+    sperm_id: int,
 ) -> None:
-    """Draws bounding box and write id on top left of bbox."""
+    """Draws bounding box and write sperm_id on top left of bbox."""
     cv2.rectangle(image, top_left_point, bottom_right_point, BBOX_COLOR, THICKNESS)
     cv2.putText(
         image,
-        f"{id}",
+        f"{sperm_id}",
         (top_left_point[0] + X_Y_ID_OFFSET, top_left_point[1] + X_Y_ID_OFFSET),
         FONT,
         FONT_SCALE,
@@ -256,7 +259,14 @@ def handle_parser(argv):
     return args
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Optional[Sequence[str]]) -> int:
+    """Graphical user interface is here"""
+    functional_main(argv)
+    return 0
+
+
+def functional_main(argv: Optional[Sequence[str]]) -> int:
+    """Main calculations and inference is done here"""
     global OUT_DIR
     args = handle_parser(argv)
     input_video_path = args.input_path
@@ -326,19 +336,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     write_video_from_img_array(overlay_img_array, input_video_path)
 
     print("Writing ID folders")
-    for id, sperm in track_history_dict.items():
-        id_out_dir = os.path.join(OUT_DIR, f"sperm_id_{id}")
-        if not os.path.exists(id_out_dir):
-            os.makedirs(id_out_dir)
-        sperm.save_sperm_image(id_out_dir)
-        sperm.save_amplitude_figures(id_out_dir)
-        sperm.save_head_frequency_figure(id_out_dir)
-        sperm.save_fft_graph_for_head_frequency(args.rate, id_out_dir)
-        sperm.save_sperm_overlay_image(id_out_dir)
+    for sperm_id, sperm in track_history_dict.items():
+        sperm_id_out_dir = os.path.join(OUT_DIR, f"sperm_id_{sperm_id}")
+        if not os.path.exists(sperm_id_out_dir):
+            os.makedirs(sperm_id_out_dir)
+        sperm.save_sperm_image(sperm_id_out_dir)
+        sperm.save_amplitude_figures(sperm_id_out_dir)
+        sperm.save_head_frequency_figure(sperm_id_out_dir)
+        sperm.save_fft_graph_for_head_frequency(args.rate, sperm_id_out_dir)
+        sperm.save_sperm_overlay_image(sperm_id_out_dir)
 
     print("Task Finished succesfully.")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(None))
