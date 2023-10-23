@@ -10,15 +10,20 @@ from itertools import cycle
 from typing import Optional
 from typing import Sequence
 from typing import Any
+from functools import partial
 
 import numpy as np
 import cv2
 from ultralytics import YOLO
 
 from sperm import Sperm
+from custombutton import CustomButton
+from xx import MyThread
 
+# print(sys.executable)
 # mandatory TODO(s):
 # TODO: GUI using tkinter
+# TODO: add a progress bar
 # TODO: activate cuda on this device and record the steps.
 # TODO: Add choices to magnification
 # Other TODO(s):
@@ -30,7 +35,7 @@ from sperm import Sperm
 # TODO: add pytest
 
 # constants
-EXE_DIR = os.path.dirname(__file__)
+EXE_DIR = os.path.dirname(sys.argv[0])
 MODEL_PATH = os.path.join(EXE_DIR, "model", "last.pt")
 BLUE = (255, 0, 0)
 GREEN = (0, 255, 0)
@@ -281,16 +286,19 @@ class App:
     def __init__(self, main_function) -> None:
         self.main_function = main_function
         self.window = tk.Tk()
-        self.window.configure(bg="white")
+        self.window_bg_color = "#353839"
+        self.window.configure(bg=self.window_bg_color)
         self.window.title("Sperm Analyzer")
         self.window.geometry("500x500")
         self.window.resizable(False, False)
+        self.window.wm_attributes("-transparentcolor", "red")
+        self.window.bind("<Destroy>", self.closing_procedure)
         # argv to be passed later
         self.mag = tk.StringVar()
         self.input_path = tk.StringVar()
         self.sampling_rate = tk.StringVar()
         # first row
-        self.input_path_button = tk.Button(
+        self.input_path_button = CustomButton(
             self.window, text="Browse video", command=self.open_video
         )
         self.magnification_combobox = ttk.Combobox(
@@ -309,11 +317,30 @@ class App:
         self.magnification_combobox.place(relx=0.5, rely=0.3, anchor=tk.CENTER)
         self.sampling_rate_entry.place(relx=0.8, rely=0.3, anchor=tk.CENTER)
         # create three labels above them
-        self.input_path_label = tk.Label(self.window, text="Input Video Path")
+        # make text bold
+        self.input_path_label = tk.Label(
+            self.window,
+            text="Input Video Path",
+            bg=self.window_bg_color,
+            fg="white",
+            font=("Helvetica", 10, "bold"),
+        )
         self.input_path_label.place(relx=0.2, rely=0.2, anchor=tk.CENTER)
-        self.magnification_label = tk.Label(self.window, text="Magnification")
+        self.magnification_label = tk.Label(
+            self.window,
+            text="Magnification",
+            bg=self.window_bg_color,
+            fg="white",
+            font=("Helvetica", 10, "bold"),
+        )
         self.magnification_label.place(relx=0.5, rely=0.2, anchor=tk.CENTER)
-        self.sampling_rate_label = tk.Label(self.window, text="Sampling Rate")
+        self.sampling_rate_label = tk.Label(
+            self.window,
+            text="Sampling Rate",
+            bg=self.window_bg_color,
+            fg="white",
+            font=("Helvetica", 10, "bold"),
+        )
         self.sampling_rate_label.place(relx=0.8, rely=0.2, anchor=tk.CENTER)
         # create one more label for saved input path label
         self.saved_input_path_label = tk.Label(
@@ -326,8 +353,14 @@ class App:
         self.logger_label = tk.Label(self.window, text="Welcome", width=50)
         self.logger_label.place(relx=0.5, rely=0.8, anchor=tk.CENTER)
         # second row
-        self.submit_button = tk.Button(self.window, text="Submit", command=self.submit)
+        self.submit_button = CustomButton(
+            self.window, text="Submit", command=self.submit
+        )
         self.submit_button.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
+
+    def closing_procedure(self, event) -> None:
+        """Callback function for closing the window."""
+        t.stop()
 
     def open_video(self) -> None:
         """Opens a file dialog to browse a video file."""
@@ -341,9 +374,10 @@ class App:
                 ]
             )
         )
-        self.saved_input_path_label.configure(
-            text=os.path.split(self.input_path.get())[1]
-        )
+        if self.input_path.get():
+            self.saved_input_path_label.configure(
+                text=os.path.split(self.input_path.get())[1]
+            )
 
     def submit(self) -> None:
         """Callback function for submit button."""
@@ -364,6 +398,8 @@ class App:
         print(argv)
         self.logger_label.configure(text="Task started")
         self.window.update()
+        # t = MyThread(callback=partial(self.main_function, argv))
+        # t.start()
         self.main_function(argv)
         self.logger_label.configure(text="Task finished")
 
@@ -386,7 +422,10 @@ def functional_main(argv: Optional[Sequence[str]]) -> int:
     input_video_path = args.input_path
     input_video_name = os.path.split(input_video_path)[1]
     OUT_DIR = os.path.join(EXE_DIR, OUT_DIR, os.path.splitext(input_video_name)[0])
+
+    print(MODEL_PATH)
     model = YOLO(MODEL_PATH)
+    print("finished loading model")
     lstresults = model.track(
         source=input_video_path,
         save=True,
