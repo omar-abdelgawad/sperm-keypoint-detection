@@ -360,7 +360,7 @@ class App:
 
     def closing_procedure(self, event) -> None:
         """Callback function for closing the window."""
-        t.stop()
+        print("closed app")
 
     def open_video(self) -> None:
         """Opens a file dialog to browse a video file."""
