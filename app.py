@@ -25,7 +25,7 @@ from xx import MyThread
 # TODO: GUI using tkinter
 # TODO: add a progress bar
 # TODO: activate cuda on this device and record the steps.
-# TODO: Add choices to magnification
+# TODO: Make and deploy Github pages.
 # Other TODO(s):
 # TODO: seriously try to use cv2.morphologyEx to remove noise it has great potential.
 # TODO: Tracking should be enhanced + why is it skipping ids??
