@@ -64,9 +64,9 @@ class Sperm:
 
         Returns:
             None"""
-        title = f"Signed Amplitude of last 4 points for id {self.id}"
+        title = f"Amplitude of last 4 points for id {self.id}"
         xlabel = "frame count"
-        ylabel = "distance between point and head axis in pixels"
+        ylabel = "distance between point and head axis in microns"
         fig, axes = plt.subplots(2, 2, sharey=True, sharex=True)
         fig.suptitle(title)
         fig.text(0.5, 0.04, xlabel, ha="center")

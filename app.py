@@ -20,12 +20,12 @@ from sperm import Sperm
 from custombutton import CustomButton
 from xx import MyThread
 
-# print(sys.executable)
 # mandatory TODO(s):
 # TODO: GUI using tkinter
 # TODO: add a progress bar
 # TODO: activate cuda on this device and record the steps.
 # TODO: Make and deploy Github pages.
+# TODO: replace all path handling to use pathlib
 # Other TODO(s):
 # TODO: seriously try to use cv2.morphologyEx to remove noise it has great potential.
 # TODO: Tracking should be enhanced + why is it skipping ids??
@@ -82,6 +82,10 @@ ALLOWED_VIDEO_EXTENSIONS = (
     ".webm",
 )
 MAGNIFICATION_LIST = ("5X", "10X", "40X", "63X")
+PIXEL_SIZE_MICRO = (1.7, 0.85, 0.22, 0.136)
+PIXEL_SIZE_FOR_MAGNIFICATION = {
+    k: v for k, v in zip(MAGNIFICATION_LIST, PIXEL_SIZE_MICRO)
+}
 # directories
 OUT_DIR = "out"
 OUT_VIDEO_FOLDER = "videos"
@@ -183,10 +187,11 @@ def file_or_dir_exist(path: str) -> str:
     return path
 
 
-def is_valid_magnification(mag: str) -> int:
+def is_valid_magnification(mag: str) -> str:
     """Should determine if magnification is valid and return a number to use in calculations."""
-    # TODO: implement this function
-    return 0
+    if not mag in MAGNIFICATION_LIST:
+        raise argparse.ArgumentTypeError(f"expected a valid magnification, got {mag!r}")
+    return mag
 
 
 def draw_bbox_and_id(
@@ -209,7 +214,12 @@ def draw_bbox_and_id(
 
 
 def project_and_draw_points(
-    image: np.ndarray, v1: np.ndarray, v2: np.ndarray, points: np.ndarray, sperm: Sperm
+    image: np.ndarray,
+    v1: np.ndarray,
+    v2: np.ndarray,
+    points: np.ndarray,
+    sperm: Sperm,
+    mag: str,
 ) -> list[np.ndarray]:
     straight_line_projection_points: list[np.ndarray] = [v1, v2]
     for i, p1 in enumerate(points, start=3):
@@ -230,8 +240,10 @@ def project_and_draw_points(
 
         v3 = v3.reshape(-1)
         projection_pt = projection_pt.reshape(-1)
-        projection_length: float = np.linalg.norm(projection_pt - v3) * np.sign(
-            np.cross(np.squeeze(projection_line), np.squeeze(b))
+        projection_length: float = (
+            np.linalg.norm(projection_pt - v3)
+            * np.sign(np.cross(np.squeeze(projection_line), np.squeeze(b)))
+            * PIXEL_SIZE_FOR_MAGNIFICATION[mag]
         )
         straight_line_projection_points.append(projection_pt)
 
@@ -291,7 +303,7 @@ class App:
         self.window.title("Sperm Analyzer")
         self.window.geometry("500x500")
         self.window.resizable(False, False)
-        self.window.wm_attributes("-transparentcolor", "red")
+        # self.window.wm_attributes("-transparentcolor", "red")
         self.window.bind("<Destroy>", self.closing_procedure)
         # argv to be passed later
         self.mag = tk.StringVar()
@@ -336,7 +348,7 @@ class App:
         self.magnification_label.place(relx=0.5, rely=0.2, anchor=tk.CENTER)
         self.sampling_rate_label = tk.Label(
             self.window,
-            text="Sampling Rate",
+            text="FPS",  # changed from sampling rate
             bg=self.window_bg_color,
             fg="white",
             font=("Helvetica", 10, "bold"),
@@ -472,7 +484,7 @@ def functional_main(argv: Optional[Sequence[str]]) -> int:
                 cur_sperm.sperm_image = np.array(result.orig_img[y1:y2, x1:x2])
 
             straight_line_projection_points = project_and_draw_points(
-                img, v1, v2, obj_keypoints[2:], cur_sperm
+                img, v1, v2, obj_keypoints[2:], cur_sperm, args.magnif
             )
             # drawing straight line on overlay_video
             for pt1, pt2 in zip(
