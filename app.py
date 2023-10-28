@@ -27,7 +27,7 @@ from xx import MyThread
 # TODO: add a progress bar
 # TODO: add a logger
 # TODO: add a button to open the output folder
-# TODO: look up if not joining the thread will cause problems
+# TODO: look up if not joining the thread(waiting for it) or making it daemon(not waiting at all for it) is a good idea.
 # TODO: activate cuda on this device and record the steps.
 # TODO: Make and deploy Github pages.
 # TODO: replace all path handling to use pathlib
