@@ -2,6 +2,7 @@
 import os
 import sys
 import argparse
+import multiprocessing
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import ttk
@@ -24,6 +25,9 @@ from xx import MyThread
 # mandatory TODO(s):
 # TODO: GUI using tkinter
 # TODO: add a progress bar
+# TODO: add a logger
+# TODO: add a button to open the output folder
+# TODO: look up if not joining the thread will cause problems
 # TODO: activate cuda on this device and record the steps.
 # TODO: Make and deploy Github pages.
 # TODO: replace all path handling to use pathlib
@@ -297,6 +301,7 @@ def handle_parser(argv):
 
 class App:
     def __init__(self, main_function) -> None:
+        print("initialized app")
         self.main_function = main_function
         self.window = tk.Tk()
         self.window_bg_color = "#353839"
@@ -373,8 +378,9 @@ class App:
 
     def closing_procedure(self, event) -> None:
         """Callback function for closing the window."""
-        # self.other_thread.close()
-        print("closed app", event, event.widget)
+        # self.other_thread.join()
+        sys.exit("Closed app")
+        # print("closed app", event, event.widget)
 
     def open_video(self) -> None:
         """Opens a file dialog to browse a video file."""
@@ -520,4 +526,6 @@ def functional_main(argv: Optional[Sequence[str]]) -> int:
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
+    print("ran app.py")
     sys.exit(main())
