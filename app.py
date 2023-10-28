@@ -18,6 +18,7 @@ from ultralytics import YOLO
 
 from sperm import Sperm
 from custombutton import CustomButton
+from threading import Thread
 from xx import MyThread
 
 # mandatory TODO(s):
@@ -372,7 +373,8 @@ class App:
 
     def closing_procedure(self, event) -> None:
         """Callback function for closing the window."""
-        print("closed app")
+        # self.other_thread.close()
+        print("closed app", event, event.widget)
 
     def open_video(self) -> None:
         """Opens a file dialog to browse a video file."""
@@ -412,7 +414,8 @@ class App:
         self.window.update()
         # t = MyThread(callback=partial(self.main_function, argv))
         # t.start()
-        self.main_function(argv)
+        self.other_thread = Thread(target=self.main_function, args=(argv,))
+        self.other_thread.start()
         self.logger_label.configure(text="Task finished")
 
     def run(self) -> None:
@@ -420,8 +423,9 @@ class App:
         self.window.mainloop()
 
 
-def main(argv: Optional[Sequence[str]]) -> int:
+def main() -> int:
     """Graphical user interface is here"""
+    # thread = Thread(target=functional_main)
     app = App(functional_main)
     app.run()
     return 0
@@ -516,4 +520,4 @@ def functional_main(argv: Optional[Sequence[str]]) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(None))
+    sys.exit(main())

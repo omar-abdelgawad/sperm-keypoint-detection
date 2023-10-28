@@ -14,7 +14,8 @@ import matplotlib.pyplot as plt
 
 @dataclass
 class Sperm:
-    """Sperm class for holding and displaying data related to a sperm in a video defined by an id."""
+    """Sperm class for holding and displaying data related
+    to a sperm in a video defined by an id."""
 
     id: int = field()
     sperm_overlay_image_shape: InitVar[tuple] = field()
