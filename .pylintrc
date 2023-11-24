@@ -1,2 +1,3 @@
 [MESSAGES CONTROL]
-disable=fixme
+disable=fixme,no-member
+; generated-members = "cv2.*";,"numpy.*","torch.*","torchvision.*"

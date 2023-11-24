@@ -6,12 +6,11 @@ import multiprocessing
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import ttk
-from collections import defaultdict
 from itertools import cycle
 from typing import Optional
 from typing import Sequence
 from typing import Any
-from functools import partial
+from threading import Thread
 
 import numpy as np
 import cv2
@@ -19,8 +18,7 @@ from ultralytics import YOLO
 
 from sperm import Sperm
 from custombutton import CustomButton
-from threading import Thread
-from xx import MyThread
+from utils import CustomDefaultdict
 
 # mandatory TODO(s):
 # TODO: GUI using tkinter
@@ -94,15 +92,6 @@ PIXEL_SIZE_FOR_MAGNIFICATION = {
 # directories
 OUT_DIR = "out"
 OUT_VIDEO_FOLDER = "videos"
-
-
-class CustomDefaultdict(defaultdict):
-    def __missing__(self, key):
-        if self.default_factory:
-            dict.__setitem__(self, key, self.default_factory(key))
-            return self[key]
-        else:
-            defaultdict.__missing__(self, key)
 
 
 def find_fps(video_path: str) -> float:
@@ -418,8 +407,6 @@ class App:
         print(argv)
         self.logger_label.configure(text="Task started")
         self.window.update()
-        # t = MyThread(callback=partial(self.main_function, argv))
-        # t.start()
         self.other_thread = Thread(target=self.main_function, args=(argv,))
         self.other_thread.start()
         self.logger_label.configure(text="Task finished")
