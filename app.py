@@ -21,7 +21,7 @@ from custombutton import CustomButton
 from utils import CustomDefaultdict
 
 # mandatory TODO(s):
-# TODO: GUI using tkinter
+# TODO: add all utility functions to utils.py 
 # TODO: add a progress bar
 # TODO: add a logger
 # TODO: add a button to open the output folder
@@ -261,7 +261,12 @@ def project_and_draw_points(
     return straight_line_projection_points
 
 
-def handle_parser(argv):
+def handle_parser(argv: Optional[Sequence[str]]) -> argparse.Namespace:
+    """Handles the command line arguments.
+
+    Args:
+        argv (Optional[Sequence[str]]): 3 arguments are expected. Input path, magnification, sampling rate.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-i",
@@ -289,6 +294,8 @@ def handle_parser(argv):
 
 
 class App:
+    """GUI interface for the app. Will be used to get input from the user."""
+
     def __init__(self, main_function) -> None:
         print("initialized app")
         self.main_function = main_function
@@ -367,9 +374,9 @@ class App:
 
     def closing_procedure(self, event) -> None:
         """Callback function for closing the window."""
-        # self.other_thread.join()
-        sys.exit("Closed app")
-        # print("closed app", event, event.widget)
+        # self.other_thread.join() #waits for thread to finish before closing
+        print("closed app", event, event.widget)
+        sys.exit("Exiting app")
 
     def open_video(self) -> None:
         """Opens a file dialog to browse a video file."""
