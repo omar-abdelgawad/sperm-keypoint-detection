@@ -21,7 +21,7 @@ from custombutton import CustomButton
 from utils import CustomDefaultdict
 
 # mandatory TODO(s):
-# TODO: add all utility functions to utils.py 
+# TODO: add all utility functions to utils.py
 # TODO: add a progress bar
 # TODO: add a logger
 # TODO: add a button to open the output folder
