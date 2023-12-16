@@ -5,6 +5,7 @@ import argparse
 import multiprocessing
 from typing import Optional
 from typing import Sequence
+import logging
 
 import numpy as np
 import cv2
@@ -17,7 +18,6 @@ from src import cfg
 # mandatory TODO(s):
 # TODO: add all utility functions to utils.py
 # TODO: add a progress bar
-# TODO: add a logger
 # TODO: add a button to open the output folder
 # TODO: look up if not joining the thread(waiting for it) or making it daemon(not waiting at all for it) is a good idea.
 # TODO: activate cuda on this device and record the steps.
@@ -29,12 +29,17 @@ from src import cfg
 # TODO: estimate the amplitude and the head frequency as single numbers in the end.
 # TODO: Maybe try to interpolate the points in a polynomial instead of connecting them with a line.
 # TODO: remove warnings from exe file
-# TODO: add pytest
 
 # constants
 EXE_DIR = os.path.dirname(sys.argv[0])
 MODEL_PATH = os.path.join(EXE_DIR, "model", "last.pt")
-
+_CH = logging.StreamHandler()
+_FORMATTER = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+_CH.setFormatter(_FORMATTER)
+_LOG = logging.getLogger(__name__)
+_LOG.addHandler(_CH)
+_LOG.setLevel(logging.DEBUG)
+_LOG.addHandler(logging.StreamHandler())
 # directories
 OUT_DIR = "out"
 OUT_VIDEO_FOLDER = "videos"
@@ -256,9 +261,10 @@ def analyze_video(argv: Optional[Sequence[str]]) -> int:
     input_video_name = os.path.split(input_video_path)[1]
     OUT_DIR = os.path.join(EXE_DIR, OUT_DIR, os.path.splitext(input_video_name)[0])
 
-    print(MODEL_PATH)
+    _LOG.debug("input_video_path: %s", input_video_path)
+    _LOG.debug("model_path: %s", MODEL_PATH)
     model = YOLO(MODEL_PATH)
-    print("finished loading model")
+    _LOG.info("out_dir: %s", OUT_DIR)
     lstresults = model.track(
         source=input_video_path,
         save=True,
@@ -268,9 +274,9 @@ def analyze_video(argv: Optional[Sequence[str]]) -> int:
         name=OUT_VIDEO_FOLDER,
     )
     if model.device is None or model.device.type != "cuda":
-        print(f"Couldn't find gpu/cuda. Used {model.device} instead.")
+        _LOG.info("Used cpu during inference.")
     else:
-        print("Used cuda during inference.")
+        _LOG.info("Used cuda during inference.")
 
     track_history_dict: dict[int, Sperm] = {}
     overlay_img_array: list[np.ndarray] = []
@@ -327,21 +333,21 @@ def analyze_video(argv: Optional[Sequence[str]]) -> int:
     if not os.path.exists(OUT_DIR):
         os.makedirs(OUT_DIR)
 
-    print("Writing Overlayed video.")
+    _LOG.info("Writing Overlayed video.")
     write_video_from_img_array(overlay_img_array, input_video_path)
 
-    print("Writing ID folders")
+    _LOG.info("Writing ID folders")
     for sperm_id, sperm in track_history_dict.items():
         sperm_id_out_dir = os.path.join(OUT_DIR, f"sperm_id_{sperm_id}")
         if not os.path.exists(sperm_id_out_dir):
             os.makedirs(sperm_id_out_dir)
         sperm.save_all_features(sperm_id_out_dir, args.rate)
 
-    print("Task Finished succesfully.")
+    _LOG.info("Task Finished succesfully.")
     return 0
 
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
-    print("Starting app.py")
+    _LOG.info("Starting app.py")
     sys.exit(main())
