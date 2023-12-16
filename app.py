@@ -5,14 +5,12 @@ import argparse
 import multiprocessing
 from typing import Optional
 from typing import Sequence
-from typing import Any
 
 import numpy as np
 import cv2
 from ultralytics import YOLO
 
 from src.sperm import Sperm
-from src.utils import CustomDefaultdict
 from src.gui import GUI
 from src import cfg
 
@@ -245,13 +243,12 @@ def handle_parser(argv: Optional[Sequence[str]]) -> argparse.Namespace:
 
 def main() -> int:
     """Graphical user interface is here"""
-    # thread = Thread(target=functional_main)
-    app = GUI(functional_main)
+    app = GUI(analyze_video)
     app.run()
     return 0
 
 
-def functional_main(argv: Optional[Sequence[str]]) -> int:
+def analyze_video(argv: Optional[Sequence[str]]) -> int:
     """Main calculations and inference is done here"""
     global OUT_DIR
     args = handle_parser(argv)
@@ -275,11 +272,7 @@ def functional_main(argv: Optional[Sequence[str]]) -> int:
     else:
         print("Used cuda during inference.")
 
-    track_history_dict: CustomDefaultdict[int, dict[str, Any]] = CustomDefaultdict(
-        lambda key: Sperm(
-            id=key, sperm_overlay_image_shape=lstresults[0].orig_img.shape
-        )
-    )
+    track_history_dict: dict[int, Sperm] = {}
     overlay_img_array: list[np.ndarray] = []
     for img_ind, result in enumerate(lstresults):
         img = np.array(result.orig_img)
@@ -293,7 +286,14 @@ def functional_main(argv: Optional[Sequence[str]]) -> int:
         for obj_bbox_xyxy, track_id, obj_keypoints in zip(boxes, ids, keypoints):
             # bbox and id preparation
             x1, y1, x2, y2 = obj_bbox_xyxy
+            # get cur_sperm from track_history_dict and if it doesnt exist set default value
+            if track_id not in track_history_dict:
+                track_history_dict[track_id] = Sperm(
+                    id=track_id,
+                    sperm_overlay_image_shape=lstresults[0].orig_img.shape,
+                )
             cur_sperm = track_history_dict[track_id]
+            # drawing on the original video
             draw_bbox_and_id(img, (x1, y1), (x2, y2), track_id)
 
             # drawing on the overlay sperm image
@@ -335,11 +335,7 @@ def functional_main(argv: Optional[Sequence[str]]) -> int:
         sperm_id_out_dir = os.path.join(OUT_DIR, f"sperm_id_{sperm_id}")
         if not os.path.exists(sperm_id_out_dir):
             os.makedirs(sperm_id_out_dir)
-        sperm.save_sperm_image(sperm_id_out_dir)
-        sperm.save_amplitude_figures(sperm_id_out_dir)
-        sperm.save_head_frequency_figure(sperm_id_out_dir)
-        sperm.save_fft_graph_for_head_frequency(args.rate, sperm_id_out_dir)
-        sperm.save_sperm_overlay_image(sperm_id_out_dir)
+        sperm.save_all_features(sperm_id_out_dir, args.rate)
 
     print("Task Finished succesfully.")
     return 0
@@ -347,5 +343,5 @@ def functional_main(argv: Optional[Sequence[str]]) -> int:
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
-    print("ran app.py")
+    print("Starting app.py")
     sys.exit(main())
