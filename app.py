@@ -16,9 +16,9 @@ import numpy as np
 import cv2
 from ultralytics import YOLO
 
-from sperm import Sperm
-from custombutton import CustomButton
-from utils import CustomDefaultdict
+from src.sperm import Sperm
+from src.custombutton import CustomButton
+from src.utils import CustomDefaultdict
 
 # mandatory TODO(s):
 # TODO: add all utility functions to utils.py
