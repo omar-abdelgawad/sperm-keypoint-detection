@@ -3,22 +3,18 @@ import os
 import sys
 import argparse
 import multiprocessing
-import tkinter as tk
-from tkinter import filedialog
-from tkinter import ttk
-from itertools import cycle
 from typing import Optional
 from typing import Sequence
 from typing import Any
-from threading import Thread
 
 import numpy as np
 import cv2
 from ultralytics import YOLO
 
 from src.sperm import Sperm
-from src.custombutton import CustomButton
 from src.utils import CustomDefaultdict
+from src.gui import GUI
+from src import cfg
 
 # mandatory TODO(s):
 # TODO: add all utility functions to utils.py
@@ -40,55 +36,7 @@ from src.utils import CustomDefaultdict
 # constants
 EXE_DIR = os.path.dirname(sys.argv[0])
 MODEL_PATH = os.path.join(EXE_DIR, "model", "last.pt")
-BLUE = (255, 0, 0)
-GREEN = (0, 255, 0)
-RED = (0, 0, 255)
-X_Y_ID_OFFSET = 10  # px
-FONT = cv2.FONT_HERSHEY_COMPLEX
-FONT_SCALE = 1
-TEXT_COLOR = (0, 165, 255)
-BBOX_COLOR = GREEN
-THICKNESS = 2
-POINT_RADIUS = 3
-COLOR_LIST = cycle(
-    [
-        RED,
-        GREEN,
-        BLUE,
-        (128, 128, 0),
-        (0, 128, 128),
-        (128, 0, 128),
-        (255, 128, 0),
-        (0, 128, 255),
-        (128, 0, 255),
-        (255, 0, 128),
-    ]
-)
-OVERLAY_IMAGE_SAMPLE_RATE = 15
-SPLINE_DEG = 2
-NUM_POINTS_ON_FLAGELLUM = 100
-POINTS_1_TO_4_COLOR = GREEN
-POINTS_5_TO__COLOR = BLUE
-PROJECTION_LINE_COLOR = BLUE
-ALLOWED_VIDEO_EXTENSIONS = (
-    ".asf",
-    ".avi",
-    ".gif",
-    ".m4v",
-    ".mkv",
-    ".mov",
-    ".mp4",
-    ".mpeg",
-    ".mpg",
-    ".ts",
-    ".wmv",
-    ".webm",
-)
-MAGNIFICATION_LIST = ("5X", "10X", "40X", "63X")
-PIXEL_SIZE_MICRO = (1.7, 0.85, 0.22, 0.136)
-PIXEL_SIZE_FOR_MAGNIFICATION = {
-    k: v for k, v in zip(MAGNIFICATION_LIST, PIXEL_SIZE_MICRO)
-}
+
 # directories
 OUT_DIR = "out"
 OUT_VIDEO_FOLDER = "videos"
@@ -153,7 +101,7 @@ def draw_head_ellipse(
         start_angle,
         end_angle,
         color,
-        THICKNESS,
+        cfg.THICKNESS,
     )
 
 
@@ -166,11 +114,11 @@ def draw_overlay_image(points, image: np.ndarray) -> None:
 
     Returns:
         (None)"""
-    color = next(COLOR_LIST)
+    color = next(cfg.COLOR_LIST)
     points = np.array(points)
     draw_head_ellipse(image, points[0], points[1], color)
     points = points[1:].reshape((-1, 1, 2))
-    cv2.polylines(image, [points], isClosed=False, color=color, thickness=THICKNESS)
+    cv2.polylines(image, [points], isClosed=False, color=color, thickness=cfg.THICKNESS)
 
 
 def file_or_dir_exist(path: str) -> str:
@@ -183,7 +131,7 @@ def file_or_dir_exist(path: str) -> str:
 
 def is_valid_magnification(mag: str) -> str:
     """Should determine if magnification is valid and return a number to use in calculations."""
-    if not mag in MAGNIFICATION_LIST:
+    if not mag in cfg.MAGNIFICATION_LIST:
         raise argparse.ArgumentTypeError(f"expected a valid magnification, got {mag!r}")
     return mag
 
@@ -195,15 +143,17 @@ def draw_bbox_and_id(
     sperm_id: int,
 ) -> None:
     """Draws bounding box and write sperm_id on top left of bbox."""
-    cv2.rectangle(image, top_left_point, bottom_right_point, BBOX_COLOR, THICKNESS)
+    cv2.rectangle(
+        image, top_left_point, bottom_right_point, cfg.BBOX_COLOR, cfg.THICKNESS
+    )
     cv2.putText(
         image,
         f"{sperm_id}",
-        (top_left_point[0] + X_Y_ID_OFFSET, top_left_point[1] + X_Y_ID_OFFSET),
-        FONT,
-        FONT_SCALE,
-        TEXT_COLOR,
-        THICKNESS,
+        (top_left_point[0] + cfg.X_Y_ID_OFFSET, top_left_point[1] + cfg.X_Y_ID_OFFSET),
+        cfg.FONT,
+        cfg.FONT_SCALE,
+        cfg.TEXT_COLOR,
+        cfg.THICKNESS,
     )
 
 
@@ -237,18 +187,18 @@ def project_and_draw_points(
         projection_length: float = (
             np.linalg.norm(projection_pt - v3)
             * np.sign(np.cross(np.squeeze(projection_line), np.squeeze(b)))
-            * PIXEL_SIZE_FOR_MAGNIFICATION[mag]
+            * cfg.PIXEL_SIZE_FOR_MAGNIFICATION[mag]
         )
         straight_line_projection_points.append(projection_pt)
 
         cv2.circle(
             image,
             v3,
-            POINT_RADIUS,
-            POINTS_1_TO_4_COLOR if i < 5 else POINTS_5_TO__COLOR,
-            THICKNESS,
+            cfg.POINT_RADIUS,
+            cfg.POINTS_1_TO_4_COLOR if i < 5 else cfg.POINTS_5_TO__COLOR,
+            cfg.THICKNESS,
         )
-        cv2.line(image, v3, projection_pt, GREEN, 2)
+        cv2.line(image, v3, projection_pt, cfg.GREEN, 2)
         if i == 5:
             sperm.p_num_5.append(projection_length)
         if i == 6:
@@ -293,140 +243,10 @@ def handle_parser(argv: Optional[Sequence[str]]) -> argparse.Namespace:
     return args
 
 
-class App:
-    """GUI interface for the app. Will be used to get input from the user."""
-
-    def __init__(self, main_function) -> None:
-        print("initialized app")
-        self.main_function = main_function
-        self.window = tk.Tk()
-        self.window_bg_color = "#353839"
-        self.window.configure(bg=self.window_bg_color)
-        self.window.title("Sperm Analyzer")
-        self.window.geometry("500x500")
-        self.window.resizable(False, False)
-        # self.window.wm_attributes("-transparentcolor", "red")
-        self.window.bind("<Destroy>", self.closing_procedure)
-        # argv to be passed later
-        self.mag = tk.StringVar()
-        self.input_path = tk.StringVar()
-        self.sampling_rate = tk.StringVar()
-        # first row
-        self.input_path_button = CustomButton(
-            self.window, text="Browse video", command=self.open_video
-        )
-        self.magnification_combobox = ttk.Combobox(
-            self.window,
-            width=10,
-            textvariable=self.mag,
-            values=MAGNIFICATION_LIST,
-            state="readonly",
-        )
-        # create an entry for writing sampling rate as an integer
-        self.sampling_rate_entry = tk.Entry(
-            self.window, textvariable=self.sampling_rate, width=10, justify="center"
-        )
-        # place them side by side but centered and with space between them without grid
-        self.input_path_button.place(relx=0.2, rely=0.3, anchor=tk.CENTER)
-        self.magnification_combobox.place(relx=0.5, rely=0.3, anchor=tk.CENTER)
-        self.sampling_rate_entry.place(relx=0.8, rely=0.3, anchor=tk.CENTER)
-        # create three labels above them
-        # make text bold
-        self.input_path_label = tk.Label(
-            self.window,
-            text="Input Video Path",
-            bg=self.window_bg_color,
-            fg="white",
-            font=("Helvetica", 10, "bold"),
-        )
-        self.input_path_label.place(relx=0.2, rely=0.2, anchor=tk.CENTER)
-        self.magnification_label = tk.Label(
-            self.window,
-            text="Magnification",
-            bg=self.window_bg_color,
-            fg="white",
-            font=("Helvetica", 10, "bold"),
-        )
-        self.magnification_label.place(relx=0.5, rely=0.2, anchor=tk.CENTER)
-        self.sampling_rate_label = tk.Label(
-            self.window,
-            text="FPS",  # changed from sampling rate
-            bg=self.window_bg_color,
-            fg="white",
-            font=("Helvetica", 10, "bold"),
-        )
-        self.sampling_rate_label.place(relx=0.8, rely=0.2, anchor=tk.CENTER)
-        # create one more label for saved input path label
-        self.saved_input_path_label = tk.Label(
-            self.window, text="No file selected", width=20
-        )
-        self.saved_input_path_label.place(
-            relx=0.5, rely=0.5, anchor=tk.CENTER, height=50
-        )
-        # logger label
-        self.logger_label = tk.Label(self.window, text="Welcome", width=50)
-        self.logger_label.place(relx=0.5, rely=0.8, anchor=tk.CENTER)
-        # second row
-        self.submit_button = CustomButton(
-            self.window, text="Submit", command=self.submit
-        )
-        self.submit_button.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
-
-    def closing_procedure(self, event) -> None:
-        """Callback function for closing the window."""
-        # self.other_thread.join() #waits for thread to finish before closing
-        print("closed app", event, event.widget)
-        sys.exit("Exiting app")
-
-    def open_video(self) -> None:
-        """Opens a file dialog to browse a video file."""
-        self.input_path.set(
-            filedialog.askopenfilename(
-                filetypes=[
-                    (
-                        "Video Files",
-                        " ".join([f"*{ext}" for ext in ALLOWED_VIDEO_EXTENSIONS]),
-                    )
-                ]
-            )
-        )
-        if self.input_path.get():
-            self.saved_input_path_label.configure(
-                text=os.path.split(self.input_path.get())[1]
-            )
-
-    def submit(self) -> None:
-        """Callback function for submit button."""
-        print("submit button pressed")
-        argv_dict = {
-            "-i": self.input_path.get(),
-            "-m": self.mag.get(),
-            "-r": self.sampling_rate.get(),
-        }
-        items = [v for k, v in argv_dict.items()]
-        for item in items:
-            if not item:
-                self.logger_label.configure(text="Please provide all fields")
-                return
-        # make argv from the dict that contains all keys and values as two elements
-        # lists
-        argv = [item for tup in argv_dict.items() for item in tup]
-        print(argv)
-        self.logger_label.configure(text="Task started")
-        self.window.update()
-        self.other_thread = Thread(target=self.main_function, args=(argv,))
-        self.other_thread.start()
-        self.logger_label.configure(text="Task finished")
-
-    def run(self) -> None:
-        """Run main app loop."""
-        self.window.mainloop()
-
-
 def main() -> int:
     """Graphical user interface is here"""
     # thread = Thread(target=functional_main)
-    app = App(functional_main)
+    app = GUI(functional_main)
     app.run()
     return 0
 
@@ -477,7 +297,7 @@ def functional_main(argv: Optional[Sequence[str]]) -> int:
             draw_bbox_and_id(img, (x1, y1), (x2, y2), track_id)
 
             # drawing on the overlay sperm image
-            if img_ind % OVERLAY_IMAGE_SAMPLE_RATE == 0:
+            if img_ind % cfg.OVERLAY_IMAGE_SAMPLE_RATE == 0:
                 draw_overlay_image(obj_keypoints, cur_sperm.sperm_overlay_image)
 
             v1 = np.array(obj_keypoints[0])
@@ -494,7 +314,13 @@ def functional_main(argv: Optional[Sequence[str]]) -> int:
             for pt1, pt2 in zip(
                 straight_line_projection_points, straight_line_projection_points[1:]
             ):
-                cv2.line(img, tuple(pt1), tuple(pt2), PROJECTION_LINE_COLOR, THICKNESS)
+                cv2.line(
+                    img,
+                    tuple(pt1),
+                    tuple(pt2),
+                    cfg.PROJECTION_LINE_COLOR,
+                    cfg.THICKNESS,
+                )
         overlay_img_array.append(img)
     # start writing files to the out directories
     # Create out Directory
