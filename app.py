@@ -33,13 +33,12 @@ from src import cfg
 # constants
 EXE_DIR = os.path.dirname(sys.argv[0])
 MODEL_PATH = os.path.join(EXE_DIR, "model", "last.pt")
+_LOG = logging.getLogger(__name__)
 _CH = logging.StreamHandler()
 _FORMATTER = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 _CH.setFormatter(_FORMATTER)
-_LOG = logging.getLogger(__name__)
 _LOG.addHandler(_CH)
 _LOG.setLevel(logging.DEBUG)
-_LOG.addHandler(logging.StreamHandler())
 # directories
 OUT_DIR = "out"
 OUT_VIDEO_FOLDER = "videos"
@@ -272,6 +271,7 @@ def analyze_video(argv: Optional[Sequence[str]]) -> int:
         show_labels=True,
         project=OUT_DIR,
         name=OUT_VIDEO_FOLDER,
+        tracker="custom_track.yaml",
     )
     if model.device is None or model.device.type != "cuda":
         _LOG.info("Used cpu during inference.")
