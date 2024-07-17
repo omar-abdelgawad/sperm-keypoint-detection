@@ -1,4 +1,5 @@
 """Script for Main app entry point"""
+
 import os
 import sys
 import argparse
@@ -80,7 +81,12 @@ def write_video_from_img_array(
     size = width, height
     overlay_video_name = "projection_overlay_" + orig_video_name
     video_path = os.path.join(OUT_DIR, OUT_VIDEO_FOLDER, overlay_video_name)
-    out_vid = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*"DIVX"), find_fps(input_video_path), size)  # type: ignore
+    out_vid = cv2.VideoWriter(
+        video_path,
+        cv2.VideoWriter_fourcc(*"DIVX"),  # type: ignore
+        find_fps(input_video_path),
+        size,
+    )
     for img in img_array:
         out_vid.write(img)
     out_vid.release()
@@ -133,7 +139,7 @@ def file_or_dir_exist(path: str) -> str:
 
 def is_valid_magnification(mag: str) -> str:
     """Should determine if magnification is valid and return a number to use in calculations."""
-    if not mag in cfg.MAGNIFICATION_LIST:
+    if mag not in cfg.MAGNIFICATION_LIST:
         raise argparse.ArgumentTypeError(f"expected a valid magnification, got {mag!r}")
     return mag
 
@@ -171,7 +177,9 @@ def project_and_draw_points(
     for i, p1 in enumerate(points, start=3):
         v3 = np.array(p1)
 
-        reshape_vec_2d = lambda arr: arr.reshape(len(arr), 1)
+        def reshape_vec_2d(arr):
+            return arr.reshape(len(arr), 1)
+
         v1, v2, v3 = map(reshape_vec_2d, (v1, v2, v3))
         projection_line = v2 - v1
         b = v3 - v1
