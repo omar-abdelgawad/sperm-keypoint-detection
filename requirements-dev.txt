@@ -1,2 +1,2 @@
 pyinstaller==5.13.2
-mypy==1.5.1
+
