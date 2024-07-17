@@ -9,7 +9,10 @@ from typing import Any
 import cv2
 import numpy as np
 from scipy.fft import rfft, rfftfreq
+import matplotlib
 import matplotlib.pyplot as plt
+
+matplotlib.use("Agg")
 
 
 @dataclass
@@ -146,6 +149,21 @@ class Sperm:
         # ax.set_xlim(0, 50)
         plt.savefig(fname=f"{os.path.join(out_dir,title)}.jpeg")
         plt.close(fig)
+
+    def save_all_features(self, out_dir: str, sampling_rate: int) -> None:
+        """Saves all the features of the sperm.
+
+        Args:
+            out_dir(str): dir to save features to.
+
+        Returns:
+            None
+        """
+        self.save_sperm_image(out_dir)
+        self.save_sperm_overlay_image(out_dir)
+        self.save_amplitude_figures(out_dir)
+        self.save_head_frequency_figure(out_dir)
+        self.save_fft_graph_for_head_frequency(sampling_rate, out_dir)
 
 
 def estimate_freq(frequency_axis: np.ndarray, norm_amplitude: np.ndarray) -> float:
