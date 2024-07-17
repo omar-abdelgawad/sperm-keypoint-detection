@@ -4,12 +4,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Build Process Documentation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1,
+        h2 {
+            color: #333;
+        }
+
+        a {
+            color: #1e90ff;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 4px;
+            font-size: 90%;
+            color: #c7254e;
+            border-radius: 4px;
+        }
+
+        .warning {
+            background: #ffcccb;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 6px solid #f44336;
+            margin-top: 20px;
+        }
+    </style>
 </head>
 
 <body>
-    This is Sperm repo.
-    Updates.
+    <div class="container">
+        <h1>Build Process Documentation</h1>
+        <p>
+            <a href="https://github.com/omar-abdelgawad/sperm-keypoint-detection" target="_blank">
+                Original Repository
+            </a>
+        </p>
+        <h2>Step 1: Clone the Repository</h2>
+        <p>First of all, you need to clone the repository to your local machine using Git.</p>
+        <pre><code>git clone https://github.com/omar-abdelgawad/sperm-keypoint-detection.git</code></pre>
+
+        <h2>Step 2: Download Model Weights</h2>
+        <p>
+            For building the project, you need to have the model weights file, which is not included in this repository.
+            You need to download the models weights file called <strong>last.pt</strong> and then put it in the
+            <strong>model/</strong> folder (you may have to create it yourself) in the project directory.
+        </p>
+
+        <h2>Step 3: Build the Project</h2>
+        <p>
+            Finally, you can build the project by running the build script.
+        </p>
+        <pre><code>.\build_script.bat</code></pre>
+        The build output will be in the <strong>dist/</strong> folder.
+        <div class="warning">
+            <h2>Warning</h2>
+            <p>You need to have Anaconda and Python 3.10 installed in order to run the script.</p>
+        </div>
+    </div>
 </body>
 
 </html>
