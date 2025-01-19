@@ -7,21 +7,24 @@ from random import shuffle
 from ultralytics import YOLO
 from typing import TextIO
 from itertools import cycle
+from pathlib import Path
 
 # from preprocess import preprocess_image
 
 # TODO: move video from good_quality to used_in_training
-VIDEO_PATH = "other_data/sperm_vids/good_quality"
-TRAIN_PATH = "data/images/train_2"
-VAL_PATH = "data/images/val_2"
-ANNOTATIONS_PATH = "other_data/annotations"
+VIDEO_PATH = Path("other_data/sperm_vids/good_quality")
+TRAIN_PATH = Path("data/images/train_2")
+VAL_PATH = Path("data/images/val_2")
+ANNOTATIONS_PATH = Path("other_data/annotations")
 RATE = 20
-NUM_VAL_IMAGES = 62
-NUM_TRAIN_IMAGES = 449
+VAL_PERCENTAGE = 0.15
+NUM_VAL_IMAGES = 75
+NUM_TRAIN_IMAGES = 425
 DATASET_OFFSET = len(os.listdir(TRAIN_PATH)) + len(os.listdir(VAL_PATH))
+MODEL_PATH = Path("runs/pose/train5/weights/last.pt")
 
 
-def open_image_tag(file: TextIO, id, name, width, height) -> None:
+def open_image_tag(file: TextIO, id:int, name:str, width:float, height:float) -> None:
     file.write(f'<image id="{id}" name="{name}" width="{width}" height="{height}">\n')
 
 
@@ -57,20 +60,19 @@ def write_points_tag(file: TextIO, results) -> bool:
 
 
 def main():
-    model = YOLO("runs/pose/train5/weights/last.pt")
-    s = set()
+    model = YOLO(MODEL_PATH)
+    filenames_set = set()
     frame_count = 0
     img_count = 0
     filenames = os.listdir(VIDEO_PATH)
     shuffle(filenames)
-    with open(os.path.join(ANNOTATIONS_PATH, "val.txt"), "w") as val_file, open(
-        os.path.join(ANNOTATIONS_PATH, "train.txt"), "w"
-    ) as train_file:
+    with open(ANNOTATIONS_PATH / "val.txt", "w") as val_file, \
+    open(ANNOTATIONS_PATH / "train.txt", "w") as train_file:
         for filename in cycle(filenames):
             if img_count >= NUM_TRAIN_IMAGES + NUM_VAL_IMAGES:
                 break
             print(f"opened {filename}")
-            path = os.path.join(VIDEO_PATH, filename)
+            path = VIDEO_PATH / filename
             video = cv2.VideoCapture(path)
             while img_count < NUM_TRAIN_IMAGES + NUM_VAL_IMAGES:
                 flag, frame = video.read()
@@ -81,7 +83,7 @@ def main():
                     continue
                 img_count += 1
                 print(f"\t{img_count}")
-                s.add(filename)
+                filenames_set.add(filename)
                 # open two tags
                 parent_path = VAL_PATH if img_count <= NUM_VAL_IMAGES else TRAIN_PATH
                 file_to_write = val_file if img_count <= NUM_VAL_IMAGES else train_file
@@ -107,7 +109,7 @@ def main():
                 write_path = os.path.join(parent_path, image_name)
                 cv2.imwrite(write_path, frame)
 
-    print(f"Finished Succesfully collecting data from {len(s)} videos")
+    print(f"Finished Succesfully collecting data from {len(filenames_set)} videos")
 
 
 if __name__ == "__main__":
