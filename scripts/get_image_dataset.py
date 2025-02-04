@@ -12,51 +12,18 @@ from pathlib import Path
 # from preprocess import preprocess_image
 
 # TODO: move video from good_quality to used_in_training
-VIDEO_PATH = Path("other_data/sperm_vids/good_quality")
+VIDEO_PATH = Path("other_data/New_winrar_and_videos_folders_combined")
 TRAIN_PATH = Path("data/images/train_2")
 VAL_PATH = Path("data/images/val_2")
-ANNOTATIONS_PATH = Path("other_data/annotations")
+ANNOTATIONS_PATH = Path("data/annotations")
+for path in [TRAIN_PATH, VAL_PATH, ANNOTATIONS_PATH]:
+    os.makedirs(path, exist_ok=True)
 RATE = 20
-VAL_PERCENTAGE = 0.15
-NUM_VAL_IMAGES = 75
-NUM_TRAIN_IMAGES = 425
+# VAL_PERCENTAGE = 0.15
+NUM_VAL_IMAGES = 55
+NUM_TRAIN_IMAGES = 400
 DATASET_OFFSET = len(os.listdir(TRAIN_PATH)) + len(os.listdir(VAL_PATH))
-MODEL_PATH = Path("runs/pose/train5/weights/last.pt")
-
-
-def open_image_tag(file: TextIO, id:int, name:str, width:float, height:float) -> None:
-    file.write(f'<image id="{id}" name="{name}" width="{width}" height="{height}">\n')
-
-
-def close_image_tag(file: TextIO):
-    file.write("</image>\n")
-
-
-def write_box_tag(file: TextIO, results) -> bool:
-    if not np.all(results.boxes.xyxy.shape):
-        return False
-    for two_pts_tensor in results.boxes.xyxy:
-        xtl, ytl, xbr, ybr = two_pts_tensor
-        file.write(
-            f'\t<box label="sperm" source="file" occluded="0" xtl="{xtl}" ytl="{ytl}" xbr="{xbr}" ybr="{ybr}" z_order="0">\n'
-        )
-        file.write("\t</box>\n")
-    return True
-
-
-def write_points_tag(file: TextIO, results) -> bool:
-    if not np.all(results.keypoints.xy.shape):
-        return False
-    for obj in results.keypoints.xy:
-        points = ""
-        for p1, p2 in obj:
-            points += f"{p1:.2f},{p2:.2f};"
-        points = points[:-1]  # remove last semicolon
-        file.write(
-            f'\t<points label="sperm" source="file" occluded="0" points="{points}" z_order="0">\n'
-        )
-        file.write("\t</points>\n")
-    return True
+MODEL_PATH = Path("./model/last.pt")
 
 
 def main():
@@ -66,14 +33,16 @@ def main():
     img_count = 0
     filenames = os.listdir(VIDEO_PATH)
     shuffle(filenames)
-    with open(ANNOTATIONS_PATH / "val.txt", "w") as val_file, \
-    open(ANNOTATIONS_PATH / "train.txt", "w") as train_file:
+    with (
+        open(ANNOTATIONS_PATH / "val.txt", "w") as val_file,
+        open(ANNOTATIONS_PATH / "train.txt", "w") as train_file,
+    ):
         for filename in cycle(filenames):
             if img_count >= NUM_TRAIN_IMAGES + NUM_VAL_IMAGES:
                 break
             print(f"opened {filename}")
             path = VIDEO_PATH / filename
-            video = cv2.VideoCapture(path)
+            video = cv2.VideoCapture(str(path))
             while img_count < NUM_TRAIN_IMAGES + NUM_VAL_IMAGES:
                 flag, frame = video.read()
                 if not flag:
@@ -106,10 +75,47 @@ def main():
                 write_box_tag(file_to_write, results)
                 write_points_tag(file_to_write, results)
                 close_image_tag(file_to_write)
-                write_path = os.path.join(parent_path, image_name)
-                cv2.imwrite(write_path, frame)
+                write_path = parent_path / image_name
+                cv2.imwrite(str(write_path), frame)
 
     print(f"Finished Succesfully collecting data from {len(filenames_set)} videos")
+
+
+def open_image_tag(
+    file: TextIO, id: int, name: str, width: float, height: float
+) -> None:
+    file.write(f'<image id="{id}" name="{name}" width="{width}" height="{height}">\n')
+
+
+def close_image_tag(file: TextIO) -> None:
+    file.write("</image>\n")
+
+
+def write_box_tag(file: TextIO, results) -> bool:
+    if not np.all(results.boxes.xyxy.shape):
+        return False
+    for two_pts_tensor in results.boxes.xyxy:
+        xtl, ytl, xbr, ybr = two_pts_tensor
+        file.write(
+            f'\t<box label="sperm" source="file" occluded="0" xtl="{xtl}" ytl="{ytl}" xbr="{xbr}" ybr="{ybr}" z_order="0">\n'
+        )
+        file.write("\t</box>\n")
+    return True
+
+
+def write_points_tag(file: TextIO, results) -> bool:
+    if not np.all(results.keypoints.xy.shape):
+        return False
+    for obj in results.keypoints.xy:
+        points = ""
+        for p1, p2 in obj:
+            points += f"{p1:.2f},{p2:.2f};"
+        points = points[:-1]  # remove last semicolon
+        file.write(
+            f'\t<points label="sperm" source="file" occluded="0" points="{points}" z_order="0">\n'
+        )
+        file.write("\t</points>\n")
+    return True
 
 
 if __name__ == "__main__":

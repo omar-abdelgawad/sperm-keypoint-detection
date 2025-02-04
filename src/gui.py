@@ -1,4 +1,5 @@
 """Module containing gui related features of the app."""
+
 import os
 import sys
 from typing import Optional
@@ -159,7 +160,7 @@ class GUI:
         self.window.update()
         self.other_thread = Thread(target=self.main_function, args=(argv,))
         self.other_thread.start()
-        self.logger_label.configure(text="Task finished")
+        self.logger_label.configure(text="Task Started")
 
     def run(self) -> None:
         """Run main app loop."""

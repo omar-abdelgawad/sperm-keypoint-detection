@@ -44,6 +44,8 @@ _LOG.setLevel(logging.DEBUG)
 OUT_DIR = "out"
 OUT_VIDEO_FOLDER = "videos"
 
+print(f"{EXE_DIR=}")
+
 
 def find_fps(video_path: str) -> float:
     """Returns the fps of a video from its path.
@@ -76,6 +78,8 @@ def write_video_from_img_array(
 
     Returns:
         (None)"""
+    if len(img_array) == 0:
+        return
     orig_video_name = os.path.split(input_video_path)[1]
     height, width, _ = img_array[0].shape
     size = width, height
@@ -255,6 +259,11 @@ def handle_parser(argv: Optional[Sequence[str]]) -> argparse.Namespace:
 
 def main() -> int:
     """Graphical user interface is here"""
+    import ultralytics
+    import torch
+
+    print(f"torch version: {torch.__version__}")
+    print(f"ultralytics version: {ultralytics.__version__}")
     app = GUI(analyze_video)
     app.run()
     return 0
@@ -279,7 +288,7 @@ def analyze_video(argv: Optional[Sequence[str]]) -> int:
         show_labels=True,
         project=OUT_DIR,
         name=OUT_VIDEO_FOLDER,
-        tracker="custom_track.yaml",
+        # tracker="custom_track.yaml",
     )
     if model.device is None or model.device.type != "cuda":
         _LOG.info("Used cpu during inference.")

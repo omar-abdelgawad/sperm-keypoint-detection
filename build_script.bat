@@ -37,3 +37,8 @@ conda activate test_env
 @REM pip install -r requirements-dev.txt
 pip install -r requirements.txt
 pyinstaller app.spec
+
+====================================================================================
+for cloning the environment with conda:
+conda create --name test_env --clone sperm_detection_env
+once you update the ultralytics version and torch version you should be good to go.

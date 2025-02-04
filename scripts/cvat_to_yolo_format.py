@@ -4,8 +4,8 @@ import os.path
 from xml.dom import minidom
 import sys
 
-out_dir = "./out"
-annotations_file_path = "other_data/annotations/train/annotations.xml"
+out_dir = "./data/out"
+annotations_file_path = "data/annotations/val.xml"
 
 # Constants
 label_dict = {"sperm": 0}
@@ -15,9 +15,8 @@ bbox_error = 4  # px
 
 
 def main():
-    # create out dir
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    # create out dir if it doesn't exist
+    os.makedirs(out_dir, exist_ok=True)
 
     file = minidom.parse(annotations_file_path)
     images = file.getElementsByTagName("image")

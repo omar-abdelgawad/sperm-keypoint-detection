@@ -1,4 +1,5 @@
 """Module for Sperm class and related functions."""
+
 import os
 from dataclasses import dataclass
 from dataclasses import field
@@ -91,7 +92,7 @@ class Sperm:
         plt.savefig(fname=f"{os.path.join(out_dir, title)}.jpeg")
         plt.close(fig)
 
-    def save_head_frequency_figure(self, out_dir: str) -> None:
+    def save_head_frequency_figure(self, out_dir: str, sampling_rate: int) -> None:
         """Creates and saves the head_frequency figure.
 
         Args:
@@ -100,14 +101,17 @@ class Sperm:
         Returns:
             None"""
         title = f"head angle vs frame for id {self.id}"
-        xlabel = "frame count"
-        ylabel = "angle"
+        xlabel = "Time (ms)"
+        ylabel = "Angle (Degrees)"
         fig, ax = plt.subplots()
         fig.suptitle(title)
         fig.text(0.5, 0.04, xlabel, ha="center")
         fig.text(0.04, 0.5, ylabel, va="center", rotation="vertical")
-        ax.plot(self.head_angle)
-        plt.savefig(fname=f"{os.path.join(out_dir,title)}.jpeg")
+        x_axis = np.arange(len(self.head_angle)) / sampling_rate
+        # make x_axis have a time step of 1/sampling_rate
+        x_axis = x_axis * 1_000
+        ax.plot(x_axis, self.head_angle)
+        plt.savefig(fname=f"{os.path.join(out_dir, title)}.jpeg")
         plt.close(fig)
 
     def save_fft_graph_for_head_frequency(
@@ -132,8 +136,8 @@ class Sperm:
         estimated_frequency = estimate_freq(frequency_axis, norm_amplitude)
 
         title = f"fourier transform of head frequency for id {self.id}"
-        xlabel = "frequencies"
-        ylabel = "norm amplitude"
+        xlabel = "Frequency (Hz)"
+        ylabel = "Norm Amplitude"
         fig, ax = plt.subplots()
         fig.suptitle(title)
         fig.text(0.5, 0.04, xlabel, ha="center")
@@ -143,11 +147,11 @@ class Sperm:
             x=estimated_frequency,
             color="red",
             linestyle="--",
-            label=f"Estimated frequency = {estimated_frequency:.1f}",
+            label=f"Estimated frequency = {estimated_frequency:.1f} Hz",
         )
         ax.legend()
         # ax.set_xlim(0, 50)
-        plt.savefig(fname=f"{os.path.join(out_dir,title)}.jpeg")
+        plt.savefig(fname=f"{os.path.join(out_dir, title)}.jpeg")
         plt.close(fig)
 
     def save_all_features(self, out_dir: str, sampling_rate: int) -> None:
@@ -162,7 +166,7 @@ class Sperm:
         self.save_sperm_image(out_dir)
         self.save_sperm_overlay_image(out_dir)
         self.save_amplitude_figures(out_dir)
-        self.save_head_frequency_figure(out_dir)
+        self.save_head_frequency_figure(out_dir, sampling_rate)
         self.save_fft_graph_for_head_frequency(sampling_rate, out_dir)
 
 
