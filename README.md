@@ -1,8 +1,13 @@
 # sperm-keypoint-detection
 
+[[Paper]](https://pubs.rsc.org/en/content/articlelanding/2025/lc/d5lc00389j)  
 Trained YOLOv8 model on Pose estimation with sperm cells.
 
 Note: The application comes in a "dist" folder containing one executable called "app.exe" and a "model" folder. It is advised to ignore everything in the "dist" folder except the executable file.
+
+## Installation
+Download the [latest release](https://github.com/omar-abdelgawad/sperm-keypoint-detection/releases/latest) and unzip it.
+<!-- change later the url to have /latest/download/asset-name.zip -->
 
 ## Introduction
 
